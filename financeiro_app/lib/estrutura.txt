@@ -1,0 +1,23 @@
+Listagem de caminhos de pasta
+O número de série do volume é B0A3-07A8
+C:.
+|   estrutura.txt
+|   main.dart
+|   
++---lib
++---models
+|       categoria.dart
+|       financeiro_model.dart
+|       parcelado.dart
+|       recorrencia.dart
+|       task.dart
+|       transacao.dart
+|       
++---providers
+|       task_provider.dart
+|       
+\---screens
+        adicionar_transacao_page.dart
+        categoria_page.dart
+        home_page.dart
+        
