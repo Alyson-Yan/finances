@@ -1,116 +1,101 @@
-# 💰 Financeiro App
+# 💰 Finances - Sistema Financeiro Inteligente
 
-Aplicação desenvolvida para controle financeiro pessoal com foco em **organização, previsibilidade e controle real de gastos e ganhos**.
-
----
+Aplicação desenvolvida em Flutter com foco em controle financeiro pessoal baseado em regras reais de negócio, inspirado em planilhas estruturadas.
 
 ## 🚀 Objetivo
 
-Criar um sistema que vá além de um simples controle de despesas, permitindo:
-
-* Controle de **ganhos e gastos**
-* Gestão de **parcelamentos**
-* Controle de **recorrências**
-* Visualização clara do impacto financeiro futuro
+Criar um sistema que não apenas registra transações, mas que aplica regras financeiras automaticamente, garantindo consistência, previsibilidade e controle total do usuário sobre seus gastos e ganhos.
 
 ---
 
-## 🧠 Conceito
+## 🧠 Conceito do Projeto
 
-O sistema é baseado em uma lógica simples, mas poderosa:
+Diferente de apps comuns de finanças, este projeto segue um modelo baseado em:
 
-> Tudo gira em torno de **lançamentos financeiros estruturados**, que podem ser:
-
-* Pontuais
-* Parcelados
-* Recorrentes
-
-A partir disso, o sistema consegue projetar o comportamento financeiro ao longo do tempo.
+* 📌 **Fonte única de verdade**: os dados seguem uma estrutura rígida (inspirada em Excel)
+* 🔁 **Regras de negócio automatizadas**
+* 📊 **Projeção financeira mensal**
+* ⚙️ **Separação entre dados de entrada e cálculos derivados**
 
 ---
 
+## 🏗️ Funcionalidades
+
+* ✔️ Cadastro de transações (Ganhos e Gastos)
+* ✔️ Sistema de parcelamento automático
+* ✔️ Controle de categorias
+* ✔️ Histórico financeiro
+* ✔️ Cálculo automático de saldo
+* ✔️ Estrutura preparada para projeções futuras
 
 ---
 
-## ⚙️ Tecnologias Utilizadas
+## 🧩 Arquitetura
 
-* **Flutter**
-* **Dart**
-* **Provider** (gerenciamento de estado)
+O projeto segue uma organização baseada em:
 
----
+```
+lib/
+ ├── models/        # Estrutura de dados (transações, parcelamentos)
+ ├── providers/     # Gerenciamento de estado (Provider)
+ ├── screens/       # Interfaces do usuário
+ ├── widgets/       # Componentes reutilizáveis
+```
 
-## 📦 Funcionalidades
+### 🔥 Regras importantes
 
-### ✅ Implementadas
+* O usuário **não altera valores calculados manualmente**
+* Transações podem ser:
 
-* Cadastro de transações
-* Separação entre ganhos e gastos
-* Estrutura base de categorias
-* Suporte a parcelamentos
-* Base para recorrência
-
-### 🚧 Em desenvolvimento
-
-* Filtros por período
-* Relatórios e gráficos
-* Persistência de dados
-* Notificações
-* Exportação de dados
+  * Pontuais
+  * Parceladas
+  * Futuras (projetadas)
+* O sistema gera automaticamente os impactos mensais
 
 ---
 
-## 🧪 Como rodar o projeto
+## 🛠️ Tecnologias
 
-### Pré-requisitos:
+* Flutter
+* Dart
+* Provider (gerenciamento de estado)
 
-* Flutter instalado
-* Dart instalado
+---
 
-### Passos:
+## 📦 Como rodar o projeto
 
 ```bash
+# Clone o repositório
 git clone https://github.com/Alyson-Yan/finances.git
-cd financeiro_app
+
+# Acesse a pasta
+cd finances
+
+# Instale as dependências
 flutter pub get
+
+# Rode o projeto
 flutter run
 ```
 
 ---
 
-## 📌 Boas práticas adotadas
+## 📈 Roadmap
 
-* Separação por camadas (models, providers, screens)
-* Código modular
-* Estrutura escalável
-* Foco em regras de negócio claras
-
----
-
-## 🧠 Roadmap
-
-* [ ] Sistema completo de categorias com cores
-* [ ] Dashboard com gráficos
-* [ ] Histórico avançado com filtros
-* [ ] Sistema de recorrência automática
-* [ ] Exportação CSV/JSON
-* [ ] Notificações inteligentes
+* [ ] Gráficos financeiros
+* [ ] Filtros avançados
+* [ ] Exportação de dados (CSV/JSON)
+* [ ] Notificações de despesas recorrentes
+* [ ] Integração com APIs bancárias
 
 ---
 
-## 🤝 Contribuição
+## 🧑‍💻 Autor
 
-Este projeto está em desenvolvimento contínuo.
-Sugestões e melhorias são bem-vindas.
-
----
-
-## 📄 Licença
-
-Uso pessoal e educacional.
+Desenvolvido por Alyson Yan Fernandes
 
 ---
 
-## 👨‍💻 Autor
+## ⚠️ Status
 
-Desenvolvido por **Yan Fernandes**
+🚧 Em desenvolvimento — foco atual em estrutura e regras de negócio
