@@ -29,24 +29,6 @@ A partir disso, o sistema consegue projetar o comportamento financeiro ao longo 
 
 ---
 
-## 🏗️ Estrutura do Projeto
-
-```bash
-financeiro_app/
-│
-├── lib/
-│   ├── models/        # Estruturas de dados (Transação, Categoria, etc)
-│   ├── providers/     # Gerenciamento de estado
-│   ├── screens/       # Telas da aplicação
-│   └── main.dart      # Ponto de entrada
-│
-├── android/           # Configuração Android
-├── ios/               # Configuração iOS
-├── web/               # Versão web
-├── windows/           # Desktop Windows
-├── macos/             # Desktop macOS
-└── linux/             # Desktop Linux
-```
 
 ---
 
