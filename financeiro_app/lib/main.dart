@@ -10,7 +10,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   final prefs = await SharedPreferences.getInstance();
-  final savedData = prefs.getString('transacoes');
+  final savedData = prefs.getString('financeiro');
 
   runApp(
     ChangeNotifierProvider(

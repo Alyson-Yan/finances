@@ -24,6 +24,7 @@ class Transacao {
       'descricaoDetalhada': descricaoDetalhada,
       'valor': valor,
       'tipo': tipo,
+      'categoria': categoria,
       'data': data.toIso8601String(),
     };
   }
