@@ -7,6 +7,15 @@ import 'recorrencia.dart';
 import 'categoria.dart';
 import 'parcelado.dart';
 
+enum Ordenacao {
+  dataMaisRecente,
+  dataMaisAntiga,
+  valorMaior,
+  valorMenor,
+  nomeAZ,
+  nomeZA,
+}
+
 class FinanceiroModel extends ChangeNotifier {
   List<Transacao> transacoes = [];
   List<Recorrencia> recorrentes = [];
@@ -73,6 +82,22 @@ void editarTransacao({
   }
 }
 
+void removerItem(String id) {
+  if (id.startsWith('parcelado_')) {
+    final parceladoId = id.split('_')[1];
+    removerParcelado(parceladoId);
+
+  } else if (id.startsWith('fixo_')) {
+    final recorrenteId = id.split('_')[1];
+    removerRecorrencia(recorrenteId);
+
+  } else if (id.startsWith('saldo_')) {
+    // não remove saldo automático
+
+  } else {
+    removerTransacao(id);
+  }
+}
 void editarCategoria(String id, String novoNome) {
   final index = categorias.indexWhere((c) => c.id == id);
 
@@ -201,79 +226,193 @@ void editarCategoria(String id, String novoNome) {
   }
 
   // ================================
-  // MOTOR CENTRAL (MENSAL)
+  // caixa de pagamento
   // ================================
-  List<Transacao> getTransacoesDoMes(DateTime mesSelecionado) {
-    List<Transacao> lista = [];
 
-    // 1. Transações normais
-    lista.addAll(transacoes.where((t) =>
-        t.data.year == mesSelecionado.year &&
-        t.data.month == mesSelecionado.month));
+void marcarComoPago(String id) {
+  final index = transacoes.indexWhere((t) => t.id == id);
 
-    // 2. Parcelados (DINÂMICO)
-    for (var p in parcelados) {
-      final parcelas = p.gerarParcelas();
+  if (index != -1) {
+  transacoes[index].pago = !transacoes[index].pago;
 
-      for (var parcela in parcelas) {
-        if (parcela.data.year == mesSelecionado.year &&
-            parcela.data.month == mesSelecionado.month) {
-          lista.add(
-            Transacao(
-              id: "parcelado_${p.id}_${parcela.numero}",
-              nome: "${p.descricao} (${parcela.numero}/${p.totalParcelas})",
-              descricaoDetalhada: "",
-              valor: parcela.valor,
-              tipo: p.tipo == TipoTransacao.ganho ? 'Ganho' : 'Gasto',
-              categoria: "Sem categoria",
-              data: parcela.data,
-            ),
-          );
-        }
-      }
-    }
+  if (transacoes[index].pago) {
+    transacoes[index].dataPagamento = DateTime.now();
+  } else {
+    transacoes[index].dataPagamento = null;
+  }
 
-    // 3. Recorrentes
-    for (var r in recorrentes) {
-      if (mesSelecionado.isAfter(r.dataInicio) ||
-          (mesSelecionado.year == r.dataInicio.year &&
-              mesSelecionado.month == r.dataInicio.month)) {
+    _salvarDados();
+    notifyListeners();
+  }
+}
+
+// ================================
+// MOTOR CENTRAL (MENSAL)
+// ================================
+
+List<Transacao> _getTransacoesDoMesBase(DateTime mesSelecionado) {
+  List<Transacao> lista = [];
+
+  // Transações normais
+  lista.addAll(transacoes.where((t) =>
+      t.data.year == mesSelecionado.year &&
+      t.data.month == mesSelecionado.month));
+
+  // Parcelados
+  for (var p in parcelados) {
+    final parcelas = p.gerarParcelas();
+
+    for (var parcela in parcelas) {
+      if (parcela.data.year == mesSelecionado.year &&
+          parcela.data.month == mesSelecionado.month) {
         lista.add(
           Transacao(
-            id: "fixo_${r.id}_${mesSelecionado.month}_${mesSelecionado.year}",
-            nome: "${r.descricao} (Fixo)",
+            id: "parcelado_${p.id}_${parcela.numero}",
+            nome: "${p.descricao} (${parcela.numero}/${p.totalParcelas})",
             descricaoDetalhada: "",
-            valor: r.valor,
-            tipo: r.tipo,
-            categoria: r.categoria,
-            data: DateTime(
-              mesSelecionado.year,
-              mesSelecionado.month,
-              r.dataInicio.day,
-            ),
+            valor: parcela.valor,
+            tipo: p.tipo == TipoTransacao.ganho ? 'Ganho' : 'Gasto',
+            categoria: "Sem categoria",
+            data: parcela.data,
           ),
         );
       }
     }
-
-    return lista;
   }
 
-  // ================================
-  // CÁLCULOS
-  // ================================
-  double totalGanhosDoMes(DateTime mes) =>
-      getTransacoesDoMes(mes)
-          .where((t) => t.tipo == 'Ganho')
-          .fold(0.0, (sum, t) => sum + t.valor);
+  // Recorrentes
+  for (var r in recorrentes) {
+    if (mesSelecionado.isAfter(r.dataInicio) ||
+        (mesSelecionado.year == r.dataInicio.year &&
+            mesSelecionado.month == r.dataInicio.month)) {
+      lista.add(
+        Transacao(
+          id: "fixo_${r.id}_${mesSelecionado.month}_${mesSelecionado.year}",
+          nome: "${r.descricao} (${mesSelecionado.month}/${mesSelecionado.year})",
+          descricaoDetalhada: "",
+          valor: r.valor,
+          tipo: r.tipo,
+          categoria: r.categoria,
+          data: DateTime(
+            mesSelecionado.year,
+            mesSelecionado.month,
+            r.dataInicio.day,
+          ),
+        ),
+      );
+    }
+  }
 
-  double totalGastosDoMes(DateTime mes) =>
-      getTransacoesDoMes(mes)
-          .where((t) => t.tipo == 'Gasto')
-          .fold(0.0, (sum, t) => sum + t.valor);
+  return lista;
+}
+List<Transacao> getTransacoesAteMes(DateTime mesSelecionado) {
+  List<Transacao> lista = [];
 
-  double saldoDoMes(DateTime mes) =>
-      totalGanhosDoMes(mes) - totalGastosDoMes(mes);
+  DateTime cursor = DateTime(2000, 1);
+
+  while (cursor.isBefore(mesSelecionado) ||
+      (cursor.year == mesSelecionado.year &&
+      cursor.month == mesSelecionado.month)) {
+
+    lista.addAll(_getTransacoesDoMesBase(cursor));
+
+    cursor = DateTime(cursor.year, cursor.month + 1);
+  }
+
+  return lista;
+}
+// 🔥 MÉTODO PRINCIPAL (ESTAVA FALTANDO / QUEBRADO)
+List<Transacao> getTransacoesDoMes(DateTime mesSelecionado) {
+  List<Transacao> lista = _getTransacoesDoMesBase(mesSelecionado);
+
+  double saldoAnterior = 0;
+
+  final mesAnterior = DateTime(
+    mesSelecionado.year,
+    mesSelecionado.month - 1,
+  );
+
+  final listaAnterior = getTransacoesAteMes(mesAnterior);
+
+  for (var t in listaAnterior) {
+    if (t.tipo == 'Ganho') {
+      saldoAnterior += t.valor;
+    } else {
+      saldoAnterior -= t.valor;
+    }
+  }
+
+  if (saldoAnterior != 0) {
+    lista.insert(
+      0,
+      Transacao(
+        id: 'saldo_${mesSelecionado.month}_${mesSelecionado.year}',
+        nome: saldoAnterior > 0
+            ? 'Saldo anterior (${mesAnterior.month}/${mesAnterior.year})'
+            : 'Débito anterior (${mesAnterior.month}/${mesAnterior.year})',
+        descricaoDetalhada: 'Gerado automaticamente',
+        valor: saldoAnterior.abs(),
+        tipo: saldoAnterior > 0 ? 'Ganho' : 'Gasto',
+        categoria: 'Sistema',
+        data: DateTime(
+          mesSelecionado.year,
+          mesSelecionado.month,
+          1,
+        ),
+        isAutomatica: true,
+      ),
+    );
+  }
+
+  return lista;
+}
+
+// ================================
+// CÁLCULOS
+// ================================
+double totalGanhosDoMes(DateTime mes) =>
+    getTransacoesDoMes(mes)
+        .where((t) => t.tipo == 'Ganho' && !t.isAutomatica)
+        .fold(0.0, (sum, t) => sum + t.valor);
+
+double totalGastosDoMes(DateTime mes) =>
+    getTransacoesDoMes(mes)
+        .where((t) => t.tipo == 'Gasto' && !t.isAutomatica)
+        .fold(0.0, (sum, t) => sum + t.valor);
+
+// mantém para referência (mês isolado)
+double saldoDoMes(DateTime mes) =>
+    totalGanhosDoMes(mes) - totalGastosDoMes(mes);
+
+// 🔥 NOVO: saldo acumulado com controle de pagamento
+double saldoAteMes(DateTime mes) {
+  double saldo = 0;
+
+  final limite = DateTime(mes.year, mes.month + 1, 0);
+
+  // 🔥 pega TODAS as transações até o mês
+  List<Transacao> todas = [];
+
+  DateTime cursor = DateTime(2000, 1);
+
+  while (cursor.isBefore(limite) ||
+      (cursor.year == limite.year && cursor.month == limite.month)) {
+
+    todas.addAll(_getTransacoesDoMesBase(cursor));
+
+    cursor = DateTime(cursor.year, cursor.month + 1);
+  }
+
+  for (var t in todas) {
+    if (t.tipo == 'Ganho') {
+      saldo += t.valor;
+    } else {
+      saldo -= t.valor;
+    }
+  }
+
+  return saldo;
+}
 
   // ================================
   // CATEGORIAS
@@ -308,4 +447,55 @@ void editarCategoria(String id, String novoNome) {
     _salvarDados();
     notifyListeners();
   }
+}
+
+  // ================================
+  // FILTRO
+  // ================================
+
+List<Transacao> ordenarTransacoes(
+  List<Transacao> lista,
+  Ordenacao ordenacao,
+) {
+  List<Transacao> copia = List.from(lista);
+
+  switch (ordenacao) {
+    case Ordenacao.dataMaisRecente:
+      copia.sort((a, b) => b.data.compareTo(a.data));
+      break;
+
+    case Ordenacao.dataMaisAntiga:
+      copia.sort((a, b) => a.data.compareTo(b.data));
+      break;
+
+    case Ordenacao.valorMaior:
+      copia.sort((a, b) => b.valor.compareTo(a.valor));
+      break;
+
+    case Ordenacao.valorMenor:
+      copia.sort((a, b) => a.valor.compareTo(b.valor));
+      break;
+
+    case Ordenacao.nomeAZ:
+      copia.sort((a, b) => a.nome.compareTo(b.nome));
+      break;
+
+    case Ordenacao.nomeZA:
+      copia.sort((a, b) => b.nome.compareTo(a.nome));
+      break;
+  }
+
+  return copia;
+}
+
+List<Transacao> filtrarPorNome(
+  List<Transacao> lista,
+  String filtro,
+) {
+  if (filtro.isEmpty) return lista;
+
+  return lista
+      .where((t) =>
+          t.nome.toLowerCase().contains(filtro.toLowerCase()))
+      .toList();
 }

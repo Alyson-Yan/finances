@@ -169,6 +169,10 @@ class _AdicionarTransacaoPageState
   Widget build(BuildContext context) {
     final model = context.watch<FinanceiroModel>();
     final parcelas = int.tryParse(_parcelasController.text) ?? 1;
+    final listaCategorias = {
+      "Sem categoria",
+      ...model.categorias.map((c) => c.nome)
+    }.toList();
 
     return Scaffold(
       appBar: AppBar(title: const Text("Nova Transação")),
@@ -241,17 +245,21 @@ class _AdicionarTransacaoPageState
             ),
 
             DropdownButtonFormField<String>(
-              initialValue: _categoriaSelecionada,
-              items: model.categorias
-                  .map((c) => DropdownMenuItem(
-                        value: c.nome,
-                        child: Text(c.nome),
-                      ))
-                  .toList(),
+              initialValue: listaCategorias.contains(_categoriaSelecionada)
+                  ? _categoriaSelecionada
+                  : "Sem categoria",
+
+              items: listaCategorias.map((c) {
+                return DropdownMenuItem(
+                  value: c,
+                  child: Text(c),
+                );
+              }).toList(),
+
               onChanged: (v) =>
                   setState(() => _categoriaSelecionada = v),
-              decoration:
-                  const InputDecoration(labelText: "Categoria"),
+
+              decoration: const InputDecoration(labelText: "Categoria"),
             ),
 
             const SizedBox(height: 10),

@@ -1,11 +1,16 @@
 class Transacao {
   final String id;
-  final String nome; // antigo "descricao"
-  final String descricaoDetalhada; // novo campo
+  final String nome;
+  final String descricaoDetalhada;
   final double valor;
-  final String tipo; // Ganho ou Gasto
+  final String tipo;
   final String categoria;
   final DateTime data;
+
+  bool pago;
+  DateTime? dataPagamento;
+
+  bool isAutomatica; // 👈 NOVO
 
   Transacao({
     required this.id,
@@ -15,6 +20,9 @@ class Transacao {
     required this.tipo,
     required this.data,
     required this.categoria,
+    this.pago = false,
+    this.dataPagamento,
+    this.isAutomatica = false, // 👈 PADRÃO
   });
 
   Map<String, dynamic> toMap() {
@@ -24,7 +32,11 @@ class Transacao {
       'descricaoDetalhada': descricaoDetalhada,
       'valor': valor,
       'tipo': tipo,
+      'categoria': categoria,
       'data': data.toIso8601String(),
+      'pago': pago,
+      'dataPagamento': dataPagamento?.toIso8601String(),
+      'isAutomatica': isAutomatica, // 👈 NOVO
     };
   }
 
@@ -37,6 +49,11 @@ class Transacao {
       tipo: map['tipo'],
       categoria: map['categoria'],
       data: DateTime.parse(map['data']),
+      pago: map['pago'] ?? false,
+      dataPagamento: map['dataPagamento'] != null
+          ? DateTime.parse(map['dataPagamento'])
+          : null,
+      isAutomatica: map['isAutomatica'] ?? false, // 👈 NOVO
     );
   }
 }
