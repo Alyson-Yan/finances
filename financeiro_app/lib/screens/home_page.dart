@@ -330,97 +330,114 @@ Padding(
                     itemCount: transacoes.length,
                     itemBuilder: (context, index) {
                       final t = transacoes[index];
-                      
                       return Card(
-                        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                        child: ListTile(
-                          leading: Icon(
-                            t.isAutomatica
-                                ? Icons.autorenew
-                                : (t.tipo == "Ganho"
-                                    ? Icons.trending_up
-                                    : Icons.trending_down),
-                            color: t.isAutomatica
-                                ? Colors.blue
-                                : (t.tipo == "Ganho" ? Colors.green : Colors.red),
-                          ),
+                          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                          child: ListTile(
+                            leading: Icon(
+                              t.isAutomatica
+                                  ? Icons.autorenew
+                                  : (t.tipo == "Ganho"
+                                      ? Icons.trending_up
+                                      : Icons.trending_down),
+                              color: t.isAutomatica
+                                  ? Colors.blue
+                                  : (t.tipo == "Ganho" ? Colors.green : Colors.red),
+                            ),
 
-                          title: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                t.nome,
-                                style: TextStyle(
-                                  fontWeight:
-                                      t.isAutomatica ? FontWeight.bold : FontWeight.normal,
-                                  color: t.isAutomatica
-                                      ? (t.tipo == "Ganho" ? Colors.green : Colors.red)
-                                      : null,
-                                ),
-                              ),
-
-                              if (t.tipo == "Gasto" &&
-                                  !t.pago &&
-                                  (t.data.year < mesSelecionado.year ||
-                                      (t.data.year == mesSelecionado.year &&
-                                          t.data.month < mesSelecionado.month)))
-                                const Text(
-                                  "⚠️ Dívida acumulada",
+                            title: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  t.nome,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
-                                    color: Colors.orange,
-                                    fontSize: 12,
+                                    decoration: t.pago ? TextDecoration.lineThrough : null,
+                                    color: t.pago ? Colors.grey : null,
+                                    fontWeight:
+                                        t.isAutomatica ? FontWeight.bold : FontWeight.normal,
                                   ),
                                 ),
-                            ],
-                          ),
 
-                          subtitle: Text(
-                            t.isAutomatica ? "Automático" : t.tipo,
-                          ),
+                                if (t.tipo == "Gasto" &&
+                                    !t.pago &&
+                                    (t.data.year < mesSelecionado.year ||
+                                        (t.data.year == mesSelecionado.year &&
+                                            t.data.month < mesSelecionado.month)))
+                                  const Text(
+                                    "⚠️ Dívida acumulada",
+                                    style: TextStyle(
+                                      color: Colors.orange,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                              ],
+                            ),
 
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                "R\$ ${t.valor.toStringAsFixed(2)}",
-                                style: TextStyle(
-                                  color: t.tipo == "Ganho"
-                                      ? Colors.green
-                                      : Colors.red,
-                                  fontWeight: FontWeight.bold,
+                            subtitle: Text(
+                              t.isAutomatica ? "Automático" : t.tipo,
+                            ),
+
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // 💰 VALOR
+                                Text(
+                                  "R\$ ${t.valor.toStringAsFixed(2)}",
+                                  style: TextStyle(
+                                    color: t.tipo == "Ganho" ? Colors.green : Colors.red,
+                                    fontWeight: FontWeight.bold,
+                                    decoration:
+                                        t.pago ? TextDecoration.lineThrough : null,
+                                  ),
                                 ),
-                              ),
 
-                              const SizedBox(width: 8),
+                                const SizedBox(width: 8),
 
-                              if (!t.isAutomatica) ...[
-                                IconButton(
-                                  icon: const Icon(Icons.edit, color: Colors.blue),
-                                  onPressed: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) =>
-                                            AdicionarTransacaoPage(transacao: t),
-                                      ),
-                                    );
-                                  },
-                                ),
-                                IconButton(
-                                  icon: const Icon(Icons.delete, color: Colors.red),
-                                  onPressed: () {
-                                    model.removerItem(t.id);
-                                  },
-                                ),
-                              ]
-                            ],
+                                // ✅ CHECKBOX (AGORA REALMENTE CLICÁVEL)
+                                if (t.tipo == "Gasto" && !t.isAutomatica)
+                                  InkWell(
+                                    onTap: () {
+                                      model.marcarComoPago(t.id);
+                                    },
+                                    child: Checkbox(
+                                      value: t.pago,
+                                      onChanged: (_) {
+                                        model.marcarComoPago(t.id);
+                                      },
+                                    ),
+                                  ),
+
+                                // ✏️ AÇÕES
+                                if (!t.isAutomatica) ...[
+                                  IconButton(
+                                    icon: const Icon(Icons.edit, color: Colors.blue),
+                                    onPressed: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) =>
+                                              AdicionarTransacaoPage(transacao: t),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.delete, color: Colors.red),
+                                    onPressed: () {
+                                      model.removerItem(t.id);
+                                    },
+                                  ),
+                                ]
+                              ],
+                            ),
+
+                            onTap: () {
+                              _mostrarDetalhes(context, t);
+                            },
                           ),
-
-                          onTap: () {
-                            _mostrarDetalhes(context, t);
-                          },
-                        ),
-                      );                                          },
+                        );
+                      },
                                         ),
                                 ),
                               ],

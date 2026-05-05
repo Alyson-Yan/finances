@@ -229,22 +229,22 @@ void editarCategoria(String id, String novoNome) {
   // caixa de pagamento
   // ================================
 
-void marcarComoPago(String id) {
-  final index = transacoes.indexWhere((t) => t.id == id);
+  void marcarComoPago(String id) {
+    final index = transacoes.indexWhere((t) => t.id == id);
 
-  if (index != -1) {
-  transacoes[index].pago = !transacoes[index].pago;
+    if (index != -1) {
+      final t = transacoes[index];
 
-  if (transacoes[index].pago) {
-    transacoes[index].dataPagamento = DateTime.now();
-  } else {
-    transacoes[index].dataPagamento = null;
+      if (t.pago) {
+        t.marcarComoNaoPago();
+      } else {
+        t.marcarComoPago();
+      }
+
+      _salvarDados();
+      notifyListeners();
+    }
   }
-
-    _salvarDados();
-    notifyListeners();
-  }
-}
 
 // ================================
 // MOTOR CENTRAL (MENSAL)
@@ -403,13 +403,15 @@ double saldoAteMes(DateTime mes) {
     cursor = DateTime(cursor.year, cursor.month + 1);
   }
 
-  for (var t in todas) {
-    if (t.tipo == 'Ganho') {
-      saldo += t.valor;
-    } else {
+for (var t in todas) {
+  if (t.tipo == 'Ganho') {
+    saldo += t.valor;
+  } else {
+    if (t.pago) {
       saldo -= t.valor;
     }
   }
+}
 
   return saldo;
 }
@@ -447,55 +449,93 @@ double saldoAteMes(DateTime mes) {
     _salvarDados();
     notifyListeners();
   }
-}
+
+  // ================================
+  // SALDOS
+  // ================================
+
+  double saldoDisponivel(DateTime mes) {
+    double saldo = 0;
+
+    final transacoes = getTransacoesDoMes(mes);
+
+    for (var t in transacoes) {
+      if (t.tipo == 'Ganho') {
+        saldo += t.valor;
+      } else {
+        if (t.pago) {
+          saldo -= t.valor;
+        }
+      }
+    }
+
+    return saldo;
+  }
+
+  double saldoPrevisto(DateTime mes) {
+    double saldo = 0;
+
+    final transacoes = getTransacoesDoMes(mes);
+
+    for (var t in transacoes) {
+      if (t.tipo == 'Ganho') {
+        saldo += t.valor;
+      } else {
+        saldo -= t.valor;
+      }
+    }
+
+    return saldo;
+  }
 
   // ================================
   // FILTRO
   // ================================
 
-List<Transacao> ordenarTransacoes(
-  List<Transacao> lista,
-  Ordenacao ordenacao,
-) {
-  List<Transacao> copia = List.from(lista);
+  List<Transacao> ordenarTransacoes(
+    List<Transacao> lista,
+    Ordenacao ordenacao,
+  ) {
+    List<Transacao> copia = List.from(lista);
 
-  switch (ordenacao) {
-    case Ordenacao.dataMaisRecente:
-      copia.sort((a, b) => b.data.compareTo(a.data));
-      break;
+    switch (ordenacao) {
+      case Ordenacao.dataMaisRecente:
+        copia.sort((a, b) => b.data.compareTo(a.data));
+        break;
 
-    case Ordenacao.dataMaisAntiga:
-      copia.sort((a, b) => a.data.compareTo(b.data));
-      break;
+      case Ordenacao.dataMaisAntiga:
+        copia.sort((a, b) => a.data.compareTo(b.data));
+        break;
 
-    case Ordenacao.valorMaior:
-      copia.sort((a, b) => b.valor.compareTo(a.valor));
-      break;
+      case Ordenacao.valorMaior:
+        copia.sort((a, b) => b.valor.compareTo(a.valor));
+        break;
 
-    case Ordenacao.valorMenor:
-      copia.sort((a, b) => a.valor.compareTo(b.valor));
-      break;
+      case Ordenacao.valorMenor:
+        copia.sort((a, b) => a.valor.compareTo(b.valor));
+        break;
 
-    case Ordenacao.nomeAZ:
-      copia.sort((a, b) => a.nome.compareTo(b.nome));
-      break;
+      case Ordenacao.nomeAZ:
+        copia.sort((a, b) => a.nome.compareTo(b.nome));
+        break;
 
-    case Ordenacao.nomeZA:
-      copia.sort((a, b) => b.nome.compareTo(a.nome));
-      break;
+      case Ordenacao.nomeZA:
+        copia.sort((a, b) => b.nome.compareTo(a.nome));
+        break;
+    }
+
+    return copia;
   }
 
-  return copia;
-}
+  List<Transacao> filtrarPorNome(
+    List<Transacao> lista,
+    String filtro,
+  ) {
+    if (filtro.isEmpty) return lista;
 
-List<Transacao> filtrarPorNome(
-  List<Transacao> lista,
-  String filtro,
-) {
-  if (filtro.isEmpty) return lista;
-
-  return lista
-      .where((t) =>
-          t.nome.toLowerCase().contains(filtro.toLowerCase()))
-      .toList();
+    return lista
+        .where((t) =>
+            t.nome.toLowerCase().contains(filtro.toLowerCase()))
+        .toList();
+  }
 }

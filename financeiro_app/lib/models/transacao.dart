@@ -10,7 +10,7 @@ class Transacao {
   bool pago;
   DateTime? dataPagamento;
 
-  bool isAutomatica; // 👈 NOVO
+  bool isAutomatica;
 
   Transacao({
     required this.id,
@@ -22,8 +22,33 @@ class Transacao {
     required this.categoria,
     this.pago = false,
     this.dataPagamento,
-    this.isAutomatica = false, // 👈 PADRÃO
+    this.isAutomatica = false,
   });
+
+  // ================================
+  // 💡 REGRAS DE NEGÓCIO
+  // ================================
+
+  bool get isGasto => tipo == "Gasto";
+  bool get isGanho => tipo == "Ganho";
+
+  void marcarComoPago() {
+    if (isGasto) {
+      pago = true;
+      dataPagamento = DateTime.now();
+    }
+  }
+
+  void marcarComoNaoPago() {
+    if (isGasto) {
+      pago = false;
+      dataPagamento = null;
+    }
+  }
+
+  // ================================
+  // 💾 SERIALIZAÇÃO
+  // ================================
 
   Map<String, dynamic> toMap() {
     return {
@@ -36,7 +61,7 @@ class Transacao {
       'data': data.toIso8601String(),
       'pago': pago,
       'dataPagamento': dataPagamento?.toIso8601String(),
-      'isAutomatica': isAutomatica, // 👈 NOVO
+      'isAutomatica': isAutomatica,
     };
   }
 
@@ -53,7 +78,7 @@ class Transacao {
       dataPagamento: map['dataPagamento'] != null
           ? DateTime.parse(map['dataPagamento'])
           : null,
-      isAutomatica: map['isAutomatica'] ?? false, // 👈 NOVO
+      isAutomatica: map['isAutomatica'] ?? false,
     );
   }
 }
