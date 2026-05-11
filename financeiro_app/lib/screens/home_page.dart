@@ -427,9 +427,16 @@ Expanded(
                 ),
               ),
               trailing: const Icon(Icons.chevron_right),
-              onTap: () {
-                // próxima etapa: abrir tela de pendências
-              },
+onTap: () {
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (_) => PendenciasPage(
+        mesSelecionado: mesSelecionado,
+      ),
+    ),
+  );
+},
             ),
           ),
         ),
