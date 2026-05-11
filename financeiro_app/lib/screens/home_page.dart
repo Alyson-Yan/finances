@@ -71,11 +71,48 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  Future<void> _confirmarExclusao(
+    FinanceiroModel model,
+    Transacao t,
+  ) async {
+    final bool removeGrupo = t.id.startsWith('parcelado_') || t.id.startsWith('fixo_');
+
+    final confirmou = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Excluir lançamento?'),
+        content: Text(
+          removeGrupo
+              ? 'Isso removerá este lançamento e suas ocorrências relacionadas. Essa ação não pode ser desfeita.'
+              : 'Essa ação não pode ser desfeita.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text(
+              'Excluir',
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmou == true) {
+      model.removerItem(t.id);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final model = Provider.of<FinanceiroModel>(context);
 
     List<Transacao> transacoes = model.getTransacoesDoMes(mesSelecionado);
+    final relatorioCategorias = _gastosPorCategoria(transacoes);
     transacoes = model.filtrarPorNome(transacoes, filtroNome);
     transacoes = model.ordenarTransacoes(transacoes, ordenacaoSelecionada);
 
@@ -125,6 +162,11 @@ class _HomePageState extends State<HomePage> {
           Expanded(
             child: ListView(
               children: [
+                _buildSaudeFinanceira(
+                  saldoAcumuladoDisponivel,
+                  pendente,
+                ),
+                _buildRelatorioCategorias(relatorioCategorias),
                 if (pendencias.isNotEmpty)
                   _buildPendenciasCard(
                     pendencias: pendencias,
@@ -311,6 +353,96 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  Widget _buildSaudeFinanceira(double disponivel, double pendente) {
+    final semPendencia = pendente <= 0;
+    final cobrePendencias = disponivel >= pendente;
+
+    final mensagem = semPendencia
+        ? 'Sem contas em aberto até este mês.'
+        : cobrePendencias
+            ? 'Seu dinheiro disponível cobre as contas em aberto.'
+            : 'Atenção: contas em aberto passam do dinheiro disponível.';
+
+    final cor = semPendencia || cobrePendencias ? Colors.green : Colors.red;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      child: Card(
+        child: ListTile(
+          leading: Icon(
+            semPendencia || cobrePendencias
+                ? Icons.check_circle_outline
+                : Icons.error_outline,
+            color: cor,
+          ),
+          title: const Text(
+            'Saúde financeira',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          subtitle: Text(mensagem),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRelatorioCategorias(Map<String, double> categorias) {
+    if (categorias.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final principais = categorias.entries.take(3).toList();
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Maiores gastos do mês',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              ...principais.map(
+                (e) => Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 3),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(e.key),
+                      Text(
+                        formatarMoeda(e.value),
+                        style: const TextStyle(
+                          color: Colors.red,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Map<String, double> _gastosPorCategoria(List<Transacao> transacoes) {
+    final gastos = <String, double>{};
+
+    for (final t in transacoes) {
+      if (t.tipo != 'Gasto') continue;
+      gastos[t.categoria] = (gastos[t.categoria] ?? 0) + t.valor;
+    }
+
+    return Map.fromEntries(
+      gastos.entries.toList()..sort((a, b) => b.value.compareTo(a.value)),
+    );
+  }
+
   Widget _buildFiltros() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -418,6 +550,7 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildTransacaoCard(FinanceiroModel model, Transacao t) {
     final pago = model.estaPago(t.id);
+    final podeEditar = !t.id.startsWith('parcelado_') && !t.id.startsWith('fixo_');
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -460,25 +593,35 @@ class _HomePageState extends State<HomePage> {
                   model.marcarComoPago(t.id);
                 },
               ),
-            if (!t.isAutomatica) ...[
-              IconButton(
-                icon: const Icon(Icons.edit, color: Colors.blue),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => AdicionarTransacaoPage(transacao: t),
+            if (!t.isAutomatica)
+              PopupMenuButton<String>(
+                onSelected: (value) {
+                  if (value == 'editar' && podeEditar) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => AdicionarTransacaoPage(transacao: t),
+                      ),
+                    );
+                    return;
+                  }
+
+                  if (value == 'excluir') {
+                    _confirmarExclusao(model, t);
+                  }
+                },
+                itemBuilder: (_) => [
+                  if (podeEditar)
+                    const PopupMenuItem(
+                      value: 'editar',
+                      child: Text('Editar'),
                     ),
-                  );
-                },
+                  const PopupMenuItem(
+                    value: 'excluir',
+                    child: Text('Excluir'),
+                  ),
+                ],
               ),
-              IconButton(
-                icon: const Icon(Icons.delete, color: Colors.red),
-                onPressed: () {
-                  model.removerItem(t.id);
-                },
-              ),
-            ],
           ],
         ),
         onTap: () {
