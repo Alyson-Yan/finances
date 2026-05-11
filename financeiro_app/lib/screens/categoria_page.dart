@@ -61,9 +61,7 @@ class _CategoriasPageState extends State<CategoriasPage> {
 
               if (novoNome.isEmpty) return;
 
-              context
-                  .read<FinanceiroModel>()
-                  .editarCategoria(id, novoNome);
+              context.read<FinanceiroModel>().editarCategoria(id, novoNome);
 
               Navigator.pop(context);
 

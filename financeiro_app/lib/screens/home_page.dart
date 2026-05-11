@@ -227,7 +227,8 @@ class _HomePageState extends State<HomePage> {
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 13,
-                  color: saldoAcumuladoPrevisto >= 0 ? Colors.green : Colors.red,
+                  color:
+                      saldoAcumuladoPrevisto >= 0 ? Colors.green : Colors.red,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -453,20 +454,11 @@ class _HomePageState extends State<HomePage> {
             ),
             const SizedBox(width: 8),
             if (t.tipo == 'Gasto' && !t.isAutomatica)
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text(
-                    'Pago',
-                    style: TextStyle(fontSize: 12),
-                  ),
-                  Checkbox(
-                    value: pago,
-                    onChanged: (_) {
-                      model.marcarComoPago(t.id);
-                    },
-                  ),
-                ],
+              Checkbox(
+                value: pago,
+                onChanged: (_) {
+                  model.marcarComoPago(t.id);
+                },
               ),
             if (!t.isAutomatica) ...[
               IconButton(

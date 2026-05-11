@@ -14,13 +14,10 @@ class AdicionarTransacaoPage extends StatefulWidget {
   });
 
   @override
-  State<AdicionarTransacaoPage> createState() =>
-      _AdicionarTransacaoPageState();
+  State<AdicionarTransacaoPage> createState() => _AdicionarTransacaoPageState();
 }
 
-class _AdicionarTransacaoPageState
-    extends State<AdicionarTransacaoPage> {
-
+class _AdicionarTransacaoPageState extends State<AdicionarTransacaoPage> {
   final _descricaoController = TextEditingController();
   final _descricaoDetalhadaController = TextEditingController();
   final _valorController = TextEditingController();
@@ -64,14 +61,11 @@ class _AdicionarTransacaoPageState
 
   void _salvar() {
     final nome = _descricaoController.text.trim();
-    final descricaoDetalhada =
-        _descricaoDetalhadaController.text.trim();
+    final descricaoDetalhada = _descricaoDetalhadaController.text.trim();
     final parcelas = int.tryParse(_parcelasController.text) ?? 1;
-    final valorInformado =
-        _converterParaDouble(_valorController.text);
+    final valorInformado = _converterParaDouble(_valorController.text);
 
-    if (_categoriaSelecionada == null ||
-        _categoriaSelecionada!.isEmpty) {
+    if (_categoriaSelecionada == null || _categoriaSelecionada!.isEmpty) {
       _erro("Selecione uma categoria");
       return;
     }
@@ -81,20 +75,16 @@ class _AdicionarTransacaoPageState
       return;
     }
 
-    final valorTotal =
-        (_usarValorDaParcela && parcelas > 1)
-            ? valorInformado * parcelas
-            : valorInformado;
+    final valorTotal = (_usarValorDaParcela && parcelas > 1)
+        ? valorInformado * parcelas
+        : valorInformado;
 
     final model = context.read<FinanceiroModel>();
 
     final tipoEnum =
-        _tipoSelecionado == 'Ganho'
-            ? TipoTransacao.ganho
-            : TipoTransacao.gasto;
+        _tipoSelecionado == 'Ganho' ? TipoTransacao.ganho : TipoTransacao.gasto;
 
     if (widget.transacao == null) {
-
       if (_isFixo) {
         model.adicionarFixo(
           nome: nome,
@@ -104,7 +94,6 @@ class _AdicionarTransacaoPageState
           categoria: _categoriaSelecionada!,
           dataInicio: _dataInicioFixo,
         );
-
       } else if (parcelas > 1) {
         model.adicionarParcelado(
           nome: nome,
@@ -115,7 +104,6 @@ class _AdicionarTransacaoPageState
           parcelas: parcelas,
           dataInicial: _dataSelecionada,
         );
-
       } else {
         model.adicionarTransacao(
           nome,
@@ -125,7 +113,6 @@ class _AdicionarTransacaoPageState
           _categoriaSelecionada!,
         );
       }
-
     } else {
       model.editarTransacao(
         id: widget.transacao.id,
@@ -142,8 +129,7 @@ class _AdicionarTransacaoPageState
   }
 
   void _erro(String msg) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(msg)));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
   Future<void> _selecionarData(bool isFixo) async {
@@ -169,10 +155,8 @@ class _AdicionarTransacaoPageState
   Widget build(BuildContext context) {
     final model = context.watch<FinanceiroModel>();
     final parcelas = int.tryParse(_parcelasController.text) ?? 1;
-    final listaCategorias = {
-      "Sem categoria",
-      ...model.categorias.map((c) => c.nome)
-    }.toList();
+    final listaCategorias =
+        {"Sem categoria", ...model.categorias.map((c) => c.nome)}.toList();
 
     return Scaffold(
       appBar: AppBar(title: const Text("Nova Transação")),
@@ -180,7 +164,6 @@ class _AdicionarTransacaoPageState
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-
             TextField(
               controller: _descricaoController,
               decoration: const InputDecoration(labelText: "Nome"),
@@ -191,8 +174,7 @@ class _AdicionarTransacaoPageState
             TextField(
               controller: _descricaoDetalhadaController,
               maxLines: 3,
-              decoration:
-                  const InputDecoration(labelText: "Descrição"),
+              decoration: const InputDecoration(labelText: "Descrição"),
             ),
 
             CheckboxListTile(
@@ -218,18 +200,16 @@ class _AdicionarTransacaoPageState
                 _CurrencyInputFormatter(),
               ],
               decoration: InputDecoration(
-                labelText:
-                    (_usarValorDaParcela && parcelas > 1)
-                        ? "Valor da parcela"
-                        : "Valor total",
+                labelText: (_usarValorDaParcela && parcelas > 1)
+                    ? "Valor da parcela"
+                    : "Valor total",
               ),
             ),
 
             TextField(
               controller: _parcelasController,
               keyboardType: TextInputType.number,
-              decoration:
-                  const InputDecoration(labelText: "Parcelas"),
+              decoration: const InputDecoration(labelText: "Parcelas"),
               onChanged: (_) => setState(() {}),
             ),
 
@@ -239,8 +219,7 @@ class _AdicionarTransacaoPageState
                 DropdownMenuItem(value: "Ganho", child: Text("Ganho")),
                 DropdownMenuItem(value: "Gasto", child: Text("Gasto")),
               ],
-              onChanged: (v) =>
-                  setState(() => _tipoSelecionado = v!),
+              onChanged: (v) => setState(() => _tipoSelecionado = v!),
               decoration: const InputDecoration(labelText: "Tipo"),
             ),
 
@@ -248,17 +227,13 @@ class _AdicionarTransacaoPageState
               initialValue: listaCategorias.contains(_categoriaSelecionada)
                   ? _categoriaSelecionada
                   : "Sem categoria",
-
               items: listaCategorias.map((c) {
                 return DropdownMenuItem(
                   value: c,
                   child: Text(c),
                 );
               }).toList(),
-
-              onChanged: (v) =>
-                  setState(() => _categoriaSelecionada = v),
-
+              onChanged: (v) => setState(() => _categoriaSelecionada = v),
               decoration: const InputDecoration(labelText: "Categoria"),
             ),
 
@@ -310,13 +285,10 @@ class _CurrencyInputFormatter extends TextInputFormatter {
 
   @override
   TextEditingValue formatEditUpdate(
-      TextEditingValue oldValue,
-      TextEditingValue newValue) {
-
+      TextEditingValue oldValue, TextEditingValue newValue) {
     if (newValue.text.isEmpty) return newValue;
 
-    final digits =
-        newValue.text.replaceAll(RegExp(r'[^\d]'), '');
+    final digits = newValue.text.replaceAll(RegExp(r'[^\d]'), '');
 
     final number = double.parse(digits) / 100;
 
@@ -324,8 +296,7 @@ class _CurrencyInputFormatter extends TextInputFormatter {
 
     return TextEditingValue(
       text: newText,
-      selection:
-          TextSelection.collapsed(offset: newText.length),
+      selection: TextSelection.collapsed(offset: newText.length),
     );
   }
 }

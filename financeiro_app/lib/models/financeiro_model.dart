@@ -297,8 +297,7 @@ class FinanceiroModel extends ChangeNotifier {
     }
 
     for (final r in recorrentes) {
-      final iniciouAntesOuNoMes =
-          mesSelecionado.year > r.dataInicio.year ||
+      final iniciouAntesOuNoMes = mesSelecionado.year > r.dataInicio.year ||
           (mesSelecionado.year == r.dataInicio.year &&
               mesSelecionado.month >= r.dataInicio.month);
 
@@ -306,7 +305,8 @@ class FinanceiroModel extends ChangeNotifier {
         lista.add(
           Transacao(
             id: 'fixo_${r.id}_${mesSelecionado.month}_${mesSelecionado.year}',
-            nome: '${r.descricao} (${mesSelecionado.month}/${mesSelecionado.year})',
+            nome:
+                '${r.descricao} (${mesSelecionado.month}/${mesSelecionado.year})',
             descricaoDetalhada: '',
             valor: r.valor,
             tipo: r.tipo,
@@ -344,7 +344,8 @@ class FinanceiroModel extends ChangeNotifier {
   DateTime _primeiroMesComDados() {
     final datas = <DateTime>[
       ...transacoes.map((t) => DateTime(t.data.year, t.data.month)),
-      ...recorrentes.map((r) => DateTime(r.dataInicio.year, r.dataInicio.month)),
+      ...recorrentes
+          .map((r) => DateTime(r.dataInicio.year, r.dataInicio.month)),
       ...parcelados.map((p) => DateTime(p.dataInicio.year, p.dataInicio.month)),
     ];
 
@@ -524,7 +525,8 @@ class FinanceiroModel extends ChangeNotifier {
   // FILTROS / ORDENAÇÃO
   // ================================
 
-  List<Transacao> ordenarTransacoes(List<Transacao> lista, Ordenacao ordenacao) {
+  List<Transacao> ordenarTransacoes(
+      List<Transacao> lista, Ordenacao ordenacao) {
     final copia = List<Transacao>.from(lista);
 
     switch (ordenacao) {

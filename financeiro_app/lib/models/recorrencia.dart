@@ -11,7 +11,7 @@ class Recorrencia {
     required this.descricao,
     required this.valor,
     required this.tipo,
-    required this.categoria, 
+    required this.categoria,
     required this.dataInicio,
   });
 
@@ -21,7 +21,7 @@ class Recorrencia {
       'descricao': descricao,
       'valor': valor,
       'tipo': tipo,
-      'categoria': categoria, 
+      'categoria': categoria,
       'dataInicio': dataInicio.toIso8601String(),
     };
   }

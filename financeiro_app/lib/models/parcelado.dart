@@ -34,12 +34,10 @@ class Parcelado {
     List<Parcela> parcelas = [];
 
     // valor base truncado em 2 casas
-    double valorBase =
-        (valorTotal / totalParcelas).floorToDouble() / 100 * 100;
+    double valorBase = (valorTotal / totalParcelas).floorToDouble() / 100 * 100;
 
     // alternativa mais precisa:
-    valorBase =
-        double.parse((valorTotal / totalParcelas).toStringAsFixed(2));
+    valorBase = double.parse((valorTotal / totalParcelas).toStringAsFixed(2));
 
     double soma = 0;
 

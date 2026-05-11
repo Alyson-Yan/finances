@@ -10,8 +10,8 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   final prefs = await SharedPreferences.getInstance();
-  
-  // Como o seu Model agrupa tudo (transações, categorias, parcelas) 
+
+  // Como o seu Model agrupa tudo (transações, categorias, parcelas)
   // em um único JSON, só precisamos buscar a chave 'financeiro'.
   final dadosSalvos = prefs.getString('financeiro');
 
