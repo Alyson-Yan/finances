@@ -1,9 +1,10 @@
 class Recorrencia {
   final String id;
   final String descricao;
+  final String descricaoDetalhada;
   final double valor;
   final String tipo;
-  final String categoria; // 🔥 NOVO
+  final String categoria;
   final DateTime dataInicio;
 
   Recorrencia({
@@ -13,12 +14,14 @@ class Recorrencia {
     required this.tipo,
     required this.categoria,
     required this.dataInicio,
+    this.descricaoDetalhada = '',
   });
 
   Map<String, dynamic> toMap() {
     return {
       'id': id,
       'descricao': descricao,
+      'descricaoDetalhada': descricaoDetalhada,
       'valor': valor,
       'tipo': tipo,
       'categoria': categoria,
@@ -30,9 +33,10 @@ class Recorrencia {
     return Recorrencia(
       id: map['id'],
       descricao: map['descricao'],
-      valor: map['valor'],
+      descricaoDetalhada: map['descricaoDetalhada'] ?? '',
+      valor: (map['valor'] as num).toDouble(),
       tipo: map['tipo'],
-      categoria: map['categoria'] ?? '',
+      categoria: map['categoria'] ?? 'Sem categoria',
       dataInicio: DateTime.parse(map['dataInicio']),
     );
   }
