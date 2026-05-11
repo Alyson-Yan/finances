@@ -141,10 +141,11 @@ switch (ordenacaoSelecionada) {
     break;
 }
 
-    final saldo = model.saldoPrevisto(mesSelecionado);
-    final ganhos = model.totalGanhosDoMes(mesSelecionado);
-    final gastos = model.totalGastosDoMes(mesSelecionado);
-    final saldoDisponivel = model.saldoDisponivel(mesSelecionado);
+  final saldo = model.saldoPrevisto(mesSelecionado);
+  final saldoAcumulado = model.saldoAteMes(mesSelecionado);
+  final ganhos = model.totalGanhosDoMes(mesSelecionado);
+  final gastos = model.totalGastosDoMes(mesSelecionado);
+  final saldoDisponivel = model.saldoDisponivel(mesSelecionado);
   final pendente = model.totalPendenteDoMes(mesSelecionado);
 
     return Scaffold(
