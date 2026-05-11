@@ -15,9 +15,11 @@ class Parcela {
 class Parcelado {
   String id;
   String descricao;
+  String descricaoDetalhada;
   double valorTotal;
   int totalParcelas;
   TipoTransacao tipo;
+  String categoria;
   DateTime dataInicio;
 
   Parcelado({
@@ -27,30 +29,24 @@ class Parcelado {
     required this.totalParcelas,
     required this.tipo,
     required this.dataInicio,
+    this.descricaoDetalhada = '',
+    this.categoria = 'Sem categoria',
   });
 
-  /// Gera parcelas dinamicamente com ajuste de centavos
   List<Parcela> gerarParcelas() {
-    List<Parcela> parcelas = [];
-
-    // valor base truncado em 2 casas
-    double valorBase = (valorTotal / totalParcelas).floorToDouble() / 100 * 100;
-
-    // alternativa mais precisa:
-    valorBase = double.parse((valorTotal / totalParcelas).toStringAsFixed(2));
-
+    final parcelas = <Parcela>[];
+    final valorBase = double.parse((valorTotal / totalParcelas).toStringAsFixed(2));
     double soma = 0;
 
-    for (int i = 1; i <= totalParcelas; i++) {
-      DateTime dataParcela = DateTime(
+    for (var i = 1; i <= totalParcelas; i++) {
+      final dataParcela = DateTime(
         dataInicio.year,
         dataInicio.month + (i - 1),
         dataInicio.day,
       );
 
-      double valor = valorBase;
+      var valor = valorBase;
 
-      // última parcela ajusta diferença
       if (i == totalParcelas) {
         valor = double.parse((valorTotal - soma).toStringAsFixed(2));
       }
@@ -73,9 +69,11 @@ class Parcelado {
     return {
       'id': id,
       'descricao': descricao,
+      'descricaoDetalhada': descricaoDetalhada,
       'valorTotal': valorTotal,
       'totalParcelas': totalParcelas,
-      'tipo': tipo.name, // salva como string
+      'tipo': tipo.name,
+      'categoria': categoria,
       'dataInicio': dataInicio.toIso8601String(),
     };
   }
@@ -84,11 +82,13 @@ class Parcelado {
     return Parcelado(
       id: map['id'],
       descricao: map['descricao'],
+      descricaoDetalhada: map['descricaoDetalhada'] ?? '',
       valorTotal: (map['valorTotal'] as num).toDouble(),
       totalParcelas: map['totalParcelas'],
       tipo: TipoTransacao.values.firstWhere(
         (e) => e.name == map['tipo'],
       ),
+      categoria: map['categoria'] ?? 'Sem categoria',
       dataInicio: DateTime.parse(map['dataInicio']),
     );
   }
