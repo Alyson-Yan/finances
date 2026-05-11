@@ -35,7 +35,8 @@ class Parcelado {
 
   List<Parcela> gerarParcelas() {
     final parcelas = <Parcela>[];
-    final valorBase = double.parse((valorTotal / totalParcelas).toStringAsFixed(2));
+    final valorBase =
+        double.parse((valorTotal / totalParcelas).toStringAsFixed(2));
     double soma = 0;
 
     for (var i = 1; i <= totalParcelas; i++) {

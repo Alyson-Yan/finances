@@ -75,7 +75,8 @@ class _HomePageState extends State<HomePage> {
     FinanceiroModel model,
     Transacao t,
   ) async {
-    final bool removeGrupo = t.id.startsWith('parcelado_') || t.id.startsWith('fixo_');
+    final bool removeGrupo =
+        t.id.startsWith('parcelado_') || t.id.startsWith('fixo_');
 
     final confirmou = await showDialog<bool>(
       context: context,
@@ -550,7 +551,8 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildTransacaoCard(FinanceiroModel model, Transacao t) {
     final pago = model.estaPago(t.id);
-    final podeEditar = !t.id.startsWith('parcelado_') && !t.id.startsWith('fixo_');
+    final podeEditar =
+        !t.id.startsWith('parcelado_') && !t.id.startsWith('fixo_');
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
