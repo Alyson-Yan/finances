@@ -209,74 +209,118 @@ switch (ordenacaoSelecionada) {
               child: Padding(
                 padding: const EdgeInsets.all(20),
                 child: Column(
-                  children: [
-                    const Text(
-                      "Saldo Previsto",
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+children: [
+  const Text(
+    "Dinheiro total disponível",
+    textAlign: TextAlign.center,
+    style: TextStyle(
+      fontSize: 16,
+      fontWeight: FontWeight.bold,
+    ),
+  ),
 
-                    const SizedBox(height: 10),
+  const SizedBox(height: 8),
 
-                    Text(
-                      "R\$ ${saldo.toStringAsFixed(2)}",
-                      style: const TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+  Text(
+    "R\$ ${saldoAcumulado.toStringAsFixed(2)}",
+    style: const TextStyle(
+      fontSize: 32,
+      fontWeight: FontWeight.bold,
+      color: Colors.blue,
+    ),
+  ),
 
-                    const SizedBox(height: 12),
+  const SizedBox(height: 18),
 
-                    Text(
-                      "Disponível: R\$ ${saldoDisponivel.toStringAsFixed(2)}",
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.blue,
-                      ),
-                    ),
+  Container(
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(12),
+      color: Colors.black12,
+    ),
+    child: Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              "Resultado do mês",
+              style: TextStyle(fontWeight: FontWeight.w500),
+            ),
+            Text(
+              "R\$ ${saldo.toStringAsFixed(2)}",
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: saldo >= 0 ? Colors.green : Colors.red,
+              ),
+            ),
+          ],
+        ),
 
-                    const SizedBox(height: 8),
+        const SizedBox(height: 8),
 
-                    Text(
-                      "Pendente: R\$ ${pendente.toStringAsFixed(2)}",
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: Colors.orange,
-                      ),
-                    ),                    const SizedBox(height: 10),
-                    Text(
-                      "R\$ ${saldo.toStringAsFixed(2)}",
-                      style: const TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          "Ganhos: R\$ ${ganhos.toStringAsFixed(2)}",
-                          style: const TextStyle(
-                            color: Colors.green,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        Text(
-                          "Gastos: R\$ ${gastos.toStringAsFixed(2)}",
-                          style: const TextStyle(
-                            color: Colors.red,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              "Sobrou este mês",
+              style: TextStyle(fontWeight: FontWeight.w500),
+            ),
+            Text(
+              "R\$ ${saldoDisponivel.toStringAsFixed(2)}",
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: saldoDisponivel >= 0 ? Colors.green : Colors.red,
+              ),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 8),
+
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              "Falta pagar",
+              style: TextStyle(fontWeight: FontWeight.w500),
+            ),
+            Text(
+              "R\$ ${pendente.toStringAsFixed(2)}",
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: pendente > 0 ? Colors.orange : Colors.green,
+              ),
+            ),
+          ],
+        ),
+      ],
+    ),
+  ),
+
+  const SizedBox(height: 16),
+
+  Row(
+    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    children: [
+      Text(
+        "Entrou: R\$ ${ganhos.toStringAsFixed(2)}",
+        style: const TextStyle(
+          color: Colors.green,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      Text(
+        "Saiu: R\$ ${gastos.toStringAsFixed(2)}",
+        style: const TextStyle(
+          color: Colors.red,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    ],
+  ),
+],         
+              ),
               ),
             ),
           ),
