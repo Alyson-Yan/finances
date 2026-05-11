@@ -100,7 +100,7 @@ class _HomePageState extends State<HomePage> {
     final model = Provider.of<FinanceiroModel>(context);
 
   List<Transacao> transacoes =
-      model.getTransacoesAteMes(mesSelecionado);
+      model.getTransacoesDoMes(mesSelecionado);
 
 // =============================
 // FILTRO
@@ -141,7 +141,7 @@ switch (ordenacaoSelecionada) {
     break;
 }
 
-    final saldo = model.saldoAteMes(mesSelecionado);
+    final saldo = model.saldoPrevisto(mesSelecionado);
     final ganhos = model.totalGanhosDoMes(mesSelecionado);
     final gastos = model.totalGastosDoMes(mesSelecionado);
 

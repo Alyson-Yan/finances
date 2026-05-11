@@ -21,6 +21,7 @@ class FinanceiroModel extends ChangeNotifier {
   List<Recorrencia> recorrentes = [];
   List<Parcelado> parcelados = [];
   List<Categoria> categorias = [];
+  Map<String, bool> pagamentos = {};
 
   FinanceiroModel(String? savedData) {
     if (savedData != null && savedData.isNotEmpty) {
@@ -50,6 +51,11 @@ class FinanceiroModel extends ChangeNotifier {
               .map((e) => Categoria.fromMap(e))
               .toList();
         }
+        if (decoded['pagamentos'] != null) {
+          pagamentos = Map<String, bool>.from(
+            decoded['pagamentos'],
+          );
+        }
       }
     }
   }
@@ -78,6 +84,7 @@ void editarTransacao({
     );
 
     _salvarDados();
+    
     notifyListeners();
   }
 }
@@ -122,7 +129,8 @@ void editarCategoria(String id, String novoNome) {
       'transacoes': transacoes.map((t) => t.toMap()).toList(),
       'recorrentes': recorrentes.map((r) => r.toMap()).toList(),
       'parcelados': parcelados.map((p) => p.toMap()).toList(),
-      'categorias': categorias.map((c) => c.toMap()).toList(),
+      
+      'pagamentos': pagamentos,
     };
 
     await prefs.setString('financeiro', jsonEncode(data));
@@ -229,22 +237,13 @@ void editarCategoria(String id, String novoNome) {
   // caixa de pagamento
   // ================================
 
-  void marcarComoPago(String id) {
-    final index = transacoes.indexWhere((t) => t.id == id);
+void marcarComoPago(String id) {
 
-    if (index != -1) {
-      final t = transacoes[index];
+  pagamentos[id] = !(pagamentos[id] ?? false);
 
-      if (t.pago) {
-        t.marcarComoNaoPago();
-      } else {
-        t.marcarComoPago();
-      }
-
-      _salvarDados();
-      notifyListeners();
-    }
-  }
+  _salvarDados();
+  notifyListeners();
+}
 
 // ================================
 // MOTOR CENTRAL (MENSAL)
@@ -471,6 +470,11 @@ for (var t in todas) {
 
     return saldo;
   }
+
+bool estaPago(String id) {
+  return pagamentos[id] ?? false;
+}
+
 
   double saldoPrevisto(DateTime mes) {
     double saldo = 0;
