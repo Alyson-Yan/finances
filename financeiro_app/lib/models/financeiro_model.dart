@@ -1,11 +1,12 @@
-import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 
-import 'transacao.dart';
-import 'recorrencia.dart';
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 import 'categoria.dart';
 import 'parcelado.dart';
+import 'recorrencia.dart';
+import 'transacao.dart';
 
 enum Ordenacao {
   dataMaisRecente,
@@ -21,107 +22,51 @@ class FinanceiroModel extends ChangeNotifier {
   List<Recorrencia> recorrentes = [];
   List<Parcelado> parcelados = [];
   List<Categoria> categorias = [];
+
+  /// Estado operacional de pagamento.
+  /// A transação pode ser real ou virtual, mas o pagamento é controlado pelo ID.
   Map<String, bool> pagamentos = {};
 
   FinanceiroModel(String? savedData) {
-    if (savedData != null && savedData.isNotEmpty) {
-      final decoded = jsonDecode(savedData);
+    if (savedData == null || savedData.isEmpty) return;
 
-      if (decoded is Map<String, dynamic>) {
-        if (decoded['transacoes'] != null) {
-          transacoes = (decoded['transacoes'] as List)
-              .map((e) => Transacao.fromMap(e))
-              .toList();
-        }
+    final decoded = jsonDecode(savedData);
 
-        if (decoded['recorrentes'] != null) {
-          recorrentes = (decoded['recorrentes'] as List)
-              .map((e) => Recorrencia.fromMap(e))
-              .toList();
-        }
+    if (decoded is! Map<String, dynamic>) return;
 
-        if (decoded['parcelados'] != null) {
-          parcelados = (decoded['parcelados'] as List)
-              .map((e) => Parcelado.fromMap(e))
-              .toList();
-        }
+    if (decoded['transacoes'] != null) {
+      transacoes = (decoded['transacoes'] as List)
+          .map((e) => Transacao.fromMap(e))
+          .toList();
+    }
 
-        if (decoded['categorias'] != null) {
-          categorias = (decoded['categorias'] as List)
-              .map((e) => Categoria.fromMap(e))
-              .toList();
-        }
-        if (decoded['pagamentos'] != null) {
-          pagamentos = Map<String, bool>.from(
-            decoded['pagamentos'],
-          );
-        }
-      }
+    if (decoded['recorrentes'] != null) {
+      recorrentes = (decoded['recorrentes'] as List)
+          .map((e) => Recorrencia.fromMap(e))
+          .toList();
+    }
+
+    if (decoded['parcelados'] != null) {
+      parcelados = (decoded['parcelados'] as List)
+          .map((e) => Parcelado.fromMap(e))
+          .toList();
+    }
+
+    if (decoded['categorias'] != null) {
+      categorias = (decoded['categorias'] as List)
+          .map((e) => Categoria.fromMap(e))
+          .toList();
+    }
+
+    if (decoded['pagamentos'] != null) {
+      pagamentos = Map<String, bool>.from(decoded['pagamentos']);
     }
   }
 
-
-void editarTransacao({
-  required String id,
-  required String nome,
-  required String descricaoDetalhada,
-  required double valor,
-  required String tipo,
-  required String categoria,
-  required DateTime data,
-}) {
-  final index = transacoes.indexWhere((t) => t.id == id);
-
-  if (index != -1) {
-    transacoes[index] = Transacao(
-      id: id,
-      nome: nome,
-      descricaoDetalhada: descricaoDetalhada,
-      valor: valor,
-      tipo: tipo,
-      categoria: categoria,
-      data: data,
-    );
-
-    _salvarDados();
-    
-    notifyListeners();
-  }
-}
-
-void removerItem(String id) {
-  if (id.startsWith('parcelado_')) {
-    final parceladoId = id.split('_')[1];
-    removerParcelado(parceladoId);
-
-  } else if (id.startsWith('fixo_')) {
-    final recorrenteId = id.split('_')[1];
-    removerRecorrencia(recorrenteId);
-
-  } else if (id.startsWith('saldo_')) {
-    // não remove saldo automático
-
-  } else {
-    removerTransacao(id);
-  }
-}
-void editarCategoria(String id, String novoNome) {
-  final index = categorias.indexWhere((c) => c.id == id);
-
-  if (index != -1 && novoNome.isNotEmpty) {
-    categorias[index] = Categoria(
-      id: categorias[index].id,
-      nome: novoNome,
-    );
-
-    _salvarDados();
-    notifyListeners();
-  }
-}
-
   // ================================
-  // SALVAR DADOS
+  // PERSISTÊNCIA
   // ================================
+
   Future<void> _salvarDados() async {
     final prefs = await SharedPreferences.getInstance();
 
@@ -129,7 +74,7 @@ void editarCategoria(String id, String novoNome) {
       'transacoes': transacoes.map((t) => t.toMap()).toList(),
       'recorrentes': recorrentes.map((r) => r.toMap()).toList(),
       'parcelados': parcelados.map((p) => p.toMap()).toList(),
-      
+      'categorias': categorias.map((c) => c.toMap()).toList(),
       'pagamentos': pagamentos,
     };
 
@@ -137,8 +82,9 @@ void editarCategoria(String id, String novoNome) {
   }
 
   // ================================
-  // TRANSACAO NORMAL
+  // TRANSAÇÃO NORMAL
   // ================================
+
   void adicionarTransacao(
     String nome,
     String descricaoDetalhada,
@@ -161,9 +107,44 @@ void editarCategoria(String id, String novoNome) {
     notifyListeners();
   }
 
+  void editarTransacao({
+    required String id,
+    required String nome,
+    required String descricaoDetalhada,
+    required double valor,
+    required String tipo,
+    required String categoria,
+    required DateTime data,
+  }) {
+    final index = transacoes.indexWhere((t) => t.id == id);
+
+    if (index == -1) return;
+
+    transacoes[index] = Transacao(
+      id: id,
+      nome: nome,
+      descricaoDetalhada: descricaoDetalhada,
+      valor: valor,
+      tipo: tipo,
+      categoria: categoria,
+      data: data,
+    );
+
+    _salvarDados();
+    notifyListeners();
+  }
+
+  void removerTransacao(String id) {
+    transacoes.removeWhere((t) => t.id == id);
+    pagamentos.remove(id);
+    _salvarDados();
+    notifyListeners();
+  }
+
   // ================================
-  // PARCELADO (CORRIGIDO)
+  // PARCELADO
   // ================================
+
   void adicionarParcelado({
     required String nome,
     required String descricaoDetalhada,
@@ -187,9 +168,17 @@ void editarCategoria(String id, String novoNome) {
     notifyListeners();
   }
 
+  void removerParcelado(String id) {
+    parcelados.removeWhere((p) => p.id == id);
+    pagamentos.removeWhere((key, _) => key.startsWith('parcelado_${id}_'));
+    _salvarDados();
+    notifyListeners();
+  }
+
   // ================================
   // FIXO MENSAL
   // ================================
+
   void adicionarFixo({
     required String nome,
     required String descricaoDetalhada,
@@ -212,185 +201,268 @@ void editarCategoria(String id, String novoNome) {
     notifyListeners();
   }
 
-  // ================================
-  // REMOVER
-  // ================================
-  void removerTransacao(String id) {
-    transacoes.removeWhere((t) => t.id == id);
-    _salvarDados();
-    notifyListeners();
-  }
-
   void removerRecorrencia(String id) {
     recorrentes.removeWhere((r) => r.id == id);
-    _salvarDados();
-    notifyListeners();
-  }
-
-  void removerParcelado(String id) {
-    parcelados.removeWhere((p) => p.id == id);
+    pagamentos.removeWhere((key, _) => key.startsWith('fixo_${id}_'));
     _salvarDados();
     notifyListeners();
   }
 
   // ================================
-  // caixa de pagamento
+  // REMOÇÃO GENÉRICA
   // ================================
 
-void marcarComoPago(String id) {
+  void removerItem(String id) {
+    if (id.startsWith('parcelado_')) {
+      final parceladoId = id.split('_')[1];
+      removerParcelado(parceladoId);
+      return;
+    }
 
-  pagamentos[id] = !(pagamentos[id] ?? false);
+    if (id.startsWith('fixo_')) {
+      final recorrenteId = id.split('_')[1];
+      removerRecorrencia(recorrenteId);
+      return;
+    }
 
-  _salvarDados();
-  notifyListeners();
-}
+    removerTransacao(id);
+  }
 
-// ================================
-// MOTOR CENTRAL (MENSAL)
-// ================================
+  // ================================
+  // PAGAMENTOS
+  // ================================
 
-List<Transacao> _getTransacoesDoMesBase(DateTime mesSelecionado) {
-  List<Transacao> lista = [];
+  bool estaPago(String id) {
+    return pagamentos[id] ?? false;
+  }
 
-  // Transações normais
-  lista.addAll(transacoes.where((t) =>
-      t.data.year == mesSelecionado.year &&
-      t.data.month == mesSelecionado.month));
+  void marcarComoPago(String id) {
+    pagamentos[id] = !estaPago(id);
 
-  // Parcelados
-  for (var p in parcelados) {
-    final parcelas = p.gerarParcelas();
+    _salvarDados();
+    notifyListeners();
+  }
 
-    for (var parcela in parcelas) {
-      if (parcela.data.year == mesSelecionado.year &&
-          parcela.data.month == mesSelecionado.month) {
+  void marcarListaComoPaga(List<Transacao> lista) {
+    for (final t in lista) {
+      if (t.tipo == 'Gasto') {
+        pagamentos[t.id] = true;
+      }
+    }
+
+    _salvarDados();
+    notifyListeners();
+  }
+
+  // ================================
+  // MOTOR CENTRAL MENSAL
+  // ================================
+
+  List<Transacao> _getTransacoesDoMesBase(DateTime mesSelecionado) {
+    final lista = <Transacao>[];
+
+    lista.addAll(
+      transacoes.where(
+        (t) =>
+            t.data.year == mesSelecionado.year &&
+            t.data.month == mesSelecionado.month,
+      ),
+    );
+
+    for (final p in parcelados) {
+      final parcelas = p.gerarParcelas();
+
+      for (final parcela in parcelas) {
+        if (parcela.data.year == mesSelecionado.year &&
+            parcela.data.month == mesSelecionado.month) {
+          lista.add(
+            Transacao(
+              id: 'parcelado_${p.id}_${parcela.numero}',
+              nome: '${p.descricao} (${parcela.numero}/${p.totalParcelas})',
+              descricaoDetalhada: '',
+              valor: parcela.valor,
+              tipo: p.tipo == TipoTransacao.ganho ? 'Ganho' : 'Gasto',
+              categoria: 'Sem categoria',
+              data: parcela.data,
+            ),
+          );
+        }
+      }
+    }
+
+    for (final r in recorrentes) {
+      final iniciouAntesOuNoMes =
+          mesSelecionado.year > r.dataInicio.year ||
+          (mesSelecionado.year == r.dataInicio.year &&
+              mesSelecionado.month >= r.dataInicio.month);
+
+      if (iniciouAntesOuNoMes) {
         lista.add(
           Transacao(
-            id: "parcelado_${p.id}_${parcela.numero}",
-            nome: "${p.descricao} (${parcela.numero}/${p.totalParcelas})",
-            descricaoDetalhada: "",
-            valor: parcela.valor,
-            tipo: p.tipo == TipoTransacao.ganho ? 'Ganho' : 'Gasto',
-            categoria: "Sem categoria",
-            data: parcela.data,
+            id: 'fixo_${r.id}_${mesSelecionado.month}_${mesSelecionado.year}',
+            nome: '${r.descricao} (${mesSelecionado.month}/${mesSelecionado.year})',
+            descricaoDetalhada: '',
+            valor: r.valor,
+            tipo: r.tipo,
+            categoria: r.categoria,
+            data: DateTime(
+              mesSelecionado.year,
+              mesSelecionado.month,
+              r.dataInicio.day,
+            ),
           ),
         );
       }
     }
+
+    return lista;
   }
 
-  // Recorrentes
-  for (var r in recorrentes) {
-    if (mesSelecionado.isAfter(r.dataInicio) ||
-        (mesSelecionado.year == r.dataInicio.year &&
-            mesSelecionado.month == r.dataInicio.month)) {
-      lista.add(
-        Transacao(
-          id: "fixo_${r.id}_${mesSelecionado.month}_${mesSelecionado.year}",
-          nome: "${r.descricao} (${mesSelecionado.month}/${mesSelecionado.year})",
-          descricaoDetalhada: "",
-          valor: r.valor,
-          tipo: r.tipo,
-          categoria: r.categoria,
-          data: DateTime(
-            mesSelecionado.year,
-            mesSelecionado.month,
-            r.dataInicio.day,
-          ),
-        ),
-      );
+  List<Transacao> getTransacoesDoMes(DateTime mesSelecionado) {
+    return _getTransacoesDoMesBase(mesSelecionado);
+  }
+
+  List<Transacao> getTransacoesAteMes(DateTime mesSelecionado) {
+    final lista = <Transacao>[];
+    var cursor = _primeiroMesComDados();
+    final limite = DateTime(mesSelecionado.year, mesSelecionado.month);
+
+    while (_mesMenorOuIgual(cursor, limite)) {
+      lista.addAll(_getTransacoesDoMesBase(cursor));
+      cursor = DateTime(cursor.year, cursor.month + 1);
     }
+
+    return lista;
   }
 
-  return lista;
-}
-List<Transacao> getTransacoesAteMes(DateTime mesSelecionado) {
-  List<Transacao> lista = [];
+  DateTime _primeiroMesComDados() {
+    final datas = <DateTime>[
+      ...transacoes.map((t) => DateTime(t.data.year, t.data.month)),
+      ...recorrentes.map((r) => DateTime(r.dataInicio.year, r.dataInicio.month)),
+      ...parcelados.map((p) => DateTime(p.dataInicio.year, p.dataInicio.month)),
+    ];
 
-  DateTime cursor = DateTime(2000, 1);
+    if (datas.isEmpty) return DateTime(DateTime.now().year, DateTime.now().month);
 
-  while (cursor.isBefore(mesSelecionado) ||
-      (cursor.year == mesSelecionado.year &&
-      cursor.month == mesSelecionado.month)) {
-
-    lista.addAll(_getTransacoesDoMesBase(cursor));
-
-    cursor = DateTime(cursor.year, cursor.month + 1);
+    datas.sort((a, b) => a.compareTo(b));
+    return datas.first;
   }
 
-  return lista;
-}
-// 🔥 MÉTODO PRINCIPAL (ESTAVA FALTANDO / QUEBRADO)
-List<Transacao> getTransacoesDoMes(DateTime mesSelecionado) {
-  List<Transacao> lista = _getTransacoesDoMesBase(mesSelecionado);
+  bool _mesMenorOuIgual(DateTime a, DateTime b) {
+    return a.year < b.year || (a.year == b.year && a.month <= b.month);
+  }
 
-  return lista;
-}
+  // ================================
+  // TOTAIS DO MÊS
+  // ================================
 
-// ================================
-// CÁLCULOS
-// ================================
-double totalGanhosDoMes(DateTime mes) =>
-    getTransacoesDoMes(mes)
-        .where((t) => t.tipo == 'Ganho' && !t.isAutomatica)
+  double totalGanhosDoMes(DateTime mes) {
+    return getTransacoesDoMes(mes)
+        .where((t) => t.tipo == 'Ganho')
         .fold(0.0, (sum, t) => sum + t.valor);
-
-double totalGastosDoMes(DateTime mes) =>
-    getTransacoesDoMes(mes)
-        .where((t) => t.tipo == 'Gasto' && !t.isAutomatica)
-        .fold(0.0, (sum, t) => sum + t.valor);
-
-// mantém para referência (mês isolado)
-double saldoDoMes(DateTime mes) =>
-    totalGanhosDoMes(mes) - totalGastosDoMes(mes);
-
-// 🔥 NOVO: saldo acumulado com controle de pagamento
-double saldoAteMes(DateTime mes) {
-  double saldo = 0;
-
-  final limite = DateTime(mes.year, mes.month + 1, 0);
-
-  // 🔥 pega TODAS as transações até o mês
-  List<Transacao> todas = [];
-
-  DateTime cursor = DateTime(2000, 1);
-
-  while (cursor.isBefore(limite) ||
-      (cursor.year == limite.year && cursor.month == limite.month)) {
-
-    todas.addAll(_getTransacoesDoMesBase(cursor));
-
-    cursor = DateTime(cursor.year, cursor.month + 1);
   }
 
-for (var t in todas) {
-  if (t.tipo == 'Ganho') {
-    saldo += t.valor;
-  } else {
-    if (estaPago(t.id)) {
-      saldo -= t.valor;
+  double totalGastosDoMes(DateTime mes) {
+    return getTransacoesDoMes(mes)
+        .where((t) => t.tipo == 'Gasto')
+        .fold(0.0, (sum, t) => sum + t.valor);
+  }
+
+  double totalPagoDoMes(DateTime mes) {
+    return getTransacoesDoMes(mes)
+        .where((t) => t.tipo == 'Gasto' && estaPago(t.id))
+        .fold(0.0, (sum, t) => sum + t.valor);
+  }
+
+  double totalPendenteDoMes(DateTime mes) {
+    return getTransacoesDoMes(mes)
+        .where((t) => t.tipo == 'Gasto' && !estaPago(t.id))
+        .fold(0.0, (sum, t) => sum + t.valor);
+  }
+
+  // ================================
+  // SALDOS
+  // ================================
+
+  double saldoDoMesPrevisto(DateTime mes) {
+    return totalGanhosDoMes(mes) - totalGastosDoMes(mes);
+  }
+
+  double saldoDoMesDisponivel(DateTime mes) {
+    return totalGanhosDoMes(mes) - totalPagoDoMes(mes);
+  }
+
+  double saldoAcumuladoDisponivel(DateTime mes) {
+    return getTransacoesAteMes(mes).fold(0.0, (saldo, t) {
+      if (t.tipo == 'Ganho') return saldo + t.valor;
+      if (estaPago(t.id)) return saldo - t.valor;
+      return saldo;
+    });
+  }
+
+  double saldoAcumuladoPrevisto(DateTime mes) {
+    return getTransacoesAteMes(mes).fold(0.0, (saldo, t) {
+      if (t.tipo == 'Ganho') return saldo + t.valor;
+      return saldo - t.valor;
+    });
+  }
+
+  double totalPendenteAteMes(DateTime mes) {
+    return getPendenciasAteMes(mes).fold(0.0, (sum, t) => sum + t.valor);
+  }
+
+  // Compatibilidade com nomes antigos usados pela UI atual.
+  double saldoPrevisto(DateTime mes) => saldoDoMesPrevisto(mes);
+
+  double saldoDisponivel(DateTime mes) => saldoDoMesDisponivel(mes);
+
+  double saldoAteMes(DateTime mes) => saldoAcumuladoDisponivel(mes);
+
+  double saldoDoMes(DateTime mes) => saldoDoMesPrevisto(mes);
+
+  // ================================
+  // PENDÊNCIAS
+  // ================================
+
+  List<Transacao> getPendenciasAteMes(DateTime mes) {
+    final pendencias = getTransacoesAteMes(mes).where((t) {
+      return t.tipo == 'Gasto' && !estaPago(t.id);
+    }).toList();
+
+    pendencias.sort((a, b) => a.data.compareTo(b.data));
+    return pendencias;
+  }
+
+  Map<DateTime, List<Transacao>> getPendenciasAgrupadasPorMes(DateTime mes) {
+    final grupos = <DateTime, List<Transacao>>{};
+
+    for (final t in getPendenciasAteMes(mes)) {
+      final chave = DateTime(t.data.year, t.data.month);
+      grupos.putIfAbsent(chave, () => []);
+      grupos[chave]!.add(t);
     }
-  }
-}
 
-  return saldo;
-}
+    return grupos;
+  }
+
+  double totalPendenciasDoGrupo(List<Transacao> pendencias) {
+    return pendencias.fold(0.0, (sum, t) => sum + t.valor);
+  }
 
   // ================================
   // CATEGORIAS
   // ================================
+
   bool categoriaJaExiste(String nome) {
-    return categorias.any(
-      (c) => c.nome.toLowerCase() == nome.toLowerCase(),
-    );
+    return categorias.any((c) => c.nome.toLowerCase() == nome.toLowerCase());
   }
 
   String? adicionarCategoria(String nome) {
     final nomeLimpo = nome.trim();
 
-    if (nomeLimpo.isEmpty) return "Digite um nome.";
-    if (nomeLimpo.length < 3) return "Nome muito curto.";
-    if (categoriaJaExiste(nomeLimpo)) return "Já existe.";
+    if (nomeLimpo.isEmpty) return 'Digite um nome.';
+    if (nomeLimpo.length < 3) return 'Nome muito curto.';
+    if (categoriaJaExiste(nomeLimpo)) return 'Já existe.';
 
     final nova = Categoria(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -404,6 +476,17 @@ for (var t in todas) {
     return null;
   }
 
+  void editarCategoria(String id, String novoNome) {
+    final index = categorias.indexWhere((c) => c.id == id);
+
+    if (index == -1 || novoNome.isEmpty) return;
+
+    categorias[index] = Categoria(id: categorias[index].id, nome: novoNome);
+
+    _salvarDados();
+    notifyListeners();
+  }
+
   void removerCategoria(String id) {
     categorias.removeWhere((c) => c.id == id);
     _salvarDados();
@@ -411,79 +494,28 @@ for (var t in todas) {
   }
 
   // ================================
-  // SALDOS
+  // FILTROS / ORDENAÇÃO
   // ================================
 
-  double saldoDisponivel(DateTime mes) {
-    double saldo = 0;
-
-    final transacoes = getTransacoesDoMes(mes);
-
-    for (var t in transacoes) {
-      if (t.tipo == 'Ganho') {
-        saldo += t.valor;
-      } else {
-      if (estaPago(t.id)) {
-        saldo -= t.valor;
-      }
-      }
-    }
-
-    return saldo;
-  }
-
-bool estaPago(String id) {
-  return pagamentos[id] ?? false;
-}
-
-
-  double saldoPrevisto(DateTime mes) {
-    double saldo = 0;
-
-    final transacoes = getTransacoesDoMes(mes);
-
-    for (var t in transacoes) {
-      if (t.tipo == 'Ganho') {
-        saldo += t.valor;
-      } else {
-        saldo -= t.valor;
-      }
-    }
-
-    return saldo;
-  }
-
-  // ================================
-  // FILTRO
-  // ================================
-
-  List<Transacao> ordenarTransacoes(
-    List<Transacao> lista,
-    Ordenacao ordenacao,
-  ) {
-    List<Transacao> copia = List.from(lista);
+  List<Transacao> ordenarTransacoes(List<Transacao> lista, Ordenacao ordenacao) {
+    final copia = List<Transacao>.from(lista);
 
     switch (ordenacao) {
       case Ordenacao.dataMaisRecente:
         copia.sort((a, b) => b.data.compareTo(a.data));
         break;
-
       case Ordenacao.dataMaisAntiga:
         copia.sort((a, b) => a.data.compareTo(b.data));
         break;
-
       case Ordenacao.valorMaior:
         copia.sort((a, b) => b.valor.compareTo(a.valor));
         break;
-
       case Ordenacao.valorMenor:
         copia.sort((a, b) => a.valor.compareTo(b.valor));
         break;
-
       case Ordenacao.nomeAZ:
         copia.sort((a, b) => a.nome.compareTo(b.nome));
         break;
-
       case Ordenacao.nomeZA:
         copia.sort((a, b) => b.nome.compareTo(a.nome));
         break;
@@ -492,59 +524,11 @@ bool estaPago(String id) {
     return copia;
   }
 
-  List<Transacao> filtrarPorNome(
-    List<Transacao> lista,
-    String filtro,
-  ) {
+  List<Transacao> filtrarPorNome(List<Transacao> lista, String filtro) {
     if (filtro.isEmpty) return lista;
 
     return lista
-        .where((t) =>
-            t.nome.toLowerCase().contains(filtro.toLowerCase()))
+        .where((t) => t.nome.toLowerCase().contains(filtro.toLowerCase()))
         .toList();
   }
-
-  double totalPendenteDoMes(DateTime mes) {
-    double total = 0;
-
-    final transacoes = getTransacoesDoMes(mes);
-
-    for (var t in transacoes) {
-      if (
-        t.tipo == 'Gasto' &&
-        !estaPago(t.id)
-      ) {
-        total += t.valor;
-      }
-    }
-
-    return total;
-  }
-double totalPendenteAteMes(DateTime mes) {
-  double total = 0;
-
-  final transacoes = getTransacoesAteMes(mes);
-
-  for (var t in transacoes) {
-    if (
-      t.tipo == 'Gasto' &&
-      !estaPago(t.id)
-    ) {
-      total += t.valor;
-    }
-  }
-
-  return total;
-}
-List<Transacao> getPendenciasAteMes(DateTime mes) {
-  final lista = getTransacoesAteMes(mes);
-
-  final pendencias = lista.where((t) {
-    return t.tipo == 'Gasto' && !estaPago(t.id);
-  }).toList();
-
-  pendencias.sort((a, b) => a.data.compareTo(b.data));
-
-  return pendencias;
-}
 }
