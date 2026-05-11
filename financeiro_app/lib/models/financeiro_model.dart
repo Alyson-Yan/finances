@@ -28,11 +28,15 @@ class FinanceiroModel extends ChangeNotifier {
   Map<String, bool> pagamentos = {};
 
   FinanceiroModel(String? savedData) {
-    if (savedData == null || savedData.isEmpty) return;
+    if (savedData == null || savedData.isEmpty) {
+      return;
+    }
 
     final decoded = jsonDecode(savedData);
 
-    if (decoded is! Map<String, dynamic>) return;
+    if (decoded is! Map<String, dynamic>) {
+      return;
+    }
 
     if (decoded['transacoes'] != null) {
       transacoes = (decoded['transacoes'] as List)
@@ -118,7 +122,9 @@ class FinanceiroModel extends ChangeNotifier {
   }) {
     final index = transacoes.indexWhere((t) => t.id == id);
 
-    if (index == -1) return;
+    if (index == -1) {
+      return;
+    }
 
     transacoes[index] = Transacao(
       id: id,
@@ -342,7 +348,9 @@ class FinanceiroModel extends ChangeNotifier {
       ...parcelados.map((p) => DateTime(p.dataInicio.year, p.dataInicio.month)),
     ];
 
-    if (datas.isEmpty) return DateTime(DateTime.now().year, DateTime.now().month);
+    if (datas.isEmpty) {
+      return DateTime(DateTime.now().year, DateTime.now().month);
+    }
 
     datas.sort((a, b) => a.compareTo(b));
     return datas.first;
@@ -394,15 +402,24 @@ class FinanceiroModel extends ChangeNotifier {
 
   double saldoAcumuladoDisponivel(DateTime mes) {
     return getTransacoesAteMes(mes).fold(0.0, (saldo, t) {
-      if (t.tipo == 'Ganho') return saldo + t.valor;
-      if (estaPago(t.id)) return saldo - t.valor;
+      if (t.tipo == 'Ganho') {
+        return saldo + t.valor;
+      }
+
+      if (estaPago(t.id)) {
+        return saldo - t.valor;
+      }
+
       return saldo;
     });
   }
 
   double saldoAcumuladoPrevisto(DateTime mes) {
     return getTransacoesAteMes(mes).fold(0.0, (saldo, t) {
-      if (t.tipo == 'Ganho') return saldo + t.valor;
+      if (t.tipo == 'Ganho') {
+        return saldo + t.valor;
+      }
+
       return saldo - t.valor;
     });
   }
@@ -460,9 +477,17 @@ class FinanceiroModel extends ChangeNotifier {
   String? adicionarCategoria(String nome) {
     final nomeLimpo = nome.trim();
 
-    if (nomeLimpo.isEmpty) return 'Digite um nome.';
-    if (nomeLimpo.length < 3) return 'Nome muito curto.';
-    if (categoriaJaExiste(nomeLimpo)) return 'Já existe.';
+    if (nomeLimpo.isEmpty) {
+      return 'Digite um nome.';
+    }
+
+    if (nomeLimpo.length < 3) {
+      return 'Nome muito curto.';
+    }
+
+    if (categoriaJaExiste(nomeLimpo)) {
+      return 'Já existe.';
+    }
 
     final nova = Categoria(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -479,7 +504,9 @@ class FinanceiroModel extends ChangeNotifier {
   void editarCategoria(String id, String novoNome) {
     final index = categorias.indexWhere((c) => c.id == id);
 
-    if (index == -1 || novoNome.isEmpty) return;
+    if (index == -1 || novoNome.isEmpty) {
+      return;
+    }
 
     categorias[index] = Categoria(id: categorias[index].id, nome: novoNome);
 
@@ -525,7 +552,9 @@ class FinanceiroModel extends ChangeNotifier {
   }
 
   List<Transacao> filtrarPorNome(List<Transacao> lista, String filtro) {
-    if (filtro.isEmpty) return lista;
+    if (filtro.isEmpty) {
+      return lista;
+    }
 
     return lista
         .where((t) => t.nome.toLowerCase().contains(filtro.toLowerCase()))
