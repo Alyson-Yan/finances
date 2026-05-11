@@ -396,7 +396,39 @@ Padding(
           // =============================
           // LISTA
           // =============================
-          Expanded(
+if (pendencias.isNotEmpty)
+  Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+    child: Card(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+      ),
+      elevation: 3,
+      child: ListTile(
+        leading: const Icon(
+          Icons.warning_amber_rounded,
+          color: Colors.orange,
+        ),
+        title: Text(
+          "Pendências abertas (${pendencias.length})",
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        subtitle: Text(
+          "Total em aberto: R\$ ${pendente.toStringAsFixed(2)}",
+          style: const TextStyle(
+            color: Colors.orange,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () {
+          // próxima etapa: abrir tela de pendências
+        },
+      ),
+    ),
+  ),          Expanded(
             child: transacoes.isEmpty
                 ? const Center(
                     child: Text(
