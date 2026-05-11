@@ -324,45 +324,6 @@ List<Transacao> getTransacoesAteMes(DateTime mesSelecionado) {
 List<Transacao> getTransacoesDoMes(DateTime mesSelecionado) {
   List<Transacao> lista = _getTransacoesDoMesBase(mesSelecionado);
 
-  double saldoAnterior = 0;
-
-  final mesAnterior = DateTime(
-    mesSelecionado.year,
-    mesSelecionado.month - 1,
-  );
-
-  final listaAnterior = getTransacoesAteMes(mesAnterior);
-
-  for (var t in listaAnterior) {
-    if (t.tipo == 'Ganho') {
-      saldoAnterior += t.valor;
-    } else {
-      saldoAnterior -= t.valor;
-    }
-  }
-
-  if (saldoAnterior != 0) {
-    lista.insert(
-      0,
-      Transacao(
-        id: 'saldo_${mesSelecionado.month}_${mesSelecionado.year}',
-        nome: saldoAnterior > 0
-            ? 'Saldo anterior (${mesAnterior.month}/${mesAnterior.year})'
-            : 'Débito anterior (${mesAnterior.month}/${mesAnterior.year})',
-        descricaoDetalhada: 'Gerado automaticamente',
-        valor: saldoAnterior.abs(),
-        tipo: saldoAnterior > 0 ? 'Ganho' : 'Gasto',
-        categoria: 'Sistema',
-        data: DateTime(
-          mesSelecionado.year,
-          mesSelecionado.month,
-          1,
-        ),
-        isAutomatica: true,
-      ),
-    );
-  }
-
   return lista;
 }
 
@@ -406,7 +367,7 @@ for (var t in todas) {
   if (t.tipo == 'Ganho') {
     saldo += t.valor;
   } else {
-    if (t.pago) {
+    if (estaPago(t.id)) {
       saldo -= t.valor;
     }
   }
@@ -462,9 +423,9 @@ for (var t in todas) {
       if (t.tipo == 'Ganho') {
         saldo += t.valor;
       } else {
-        if (t.pago) {
-          saldo -= t.valor;
-        }
+      if (estaPago(t.id)) {
+        saldo -= t.valor;
+      }
       }
     }
 
@@ -542,4 +503,22 @@ bool estaPago(String id) {
             t.nome.toLowerCase().contains(filtro.toLowerCase()))
         .toList();
   }
+
+  double totalPendenteDoMes(DateTime mes) {
+    double total = 0;
+
+    final transacoes = getTransacoesDoMes(mes);
+
+    for (var t in transacoes) {
+      if (
+        t.tipo == 'Gasto' &&
+        !estaPago(t.id)
+      ) {
+        total += t.valor;
+      }
+    }
+
+    return total;
+  }
+
 }

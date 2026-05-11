@@ -144,6 +144,8 @@ switch (ordenacaoSelecionada) {
     final saldo = model.saldoPrevisto(mesSelecionado);
     final ganhos = model.totalGanhosDoMes(mesSelecionado);
     final gastos = model.totalGastosDoMes(mesSelecionado);
+    final saldoDisponivel = model.saldoDisponivel(mesSelecionado);
+  final pendente = model.totalPendenteDoMes(mesSelecionado);
 
     return Scaffold(
     appBar: AppBar(
@@ -208,13 +210,43 @@ switch (ordenacaoSelecionada) {
                 child: Column(
                   children: [
                     const Text(
-                      "Saldo do Mês",
+                      "Saldo Previsto",
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
+
                     const SizedBox(height: 10),
+
+                    Text(
+                      "R\$ ${saldo.toStringAsFixed(2)}",
+                      style: const TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    Text(
+                      "Disponível: R\$ ${saldoDisponivel.toStringAsFixed(2)}",
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.blue,
+                      ),
+                    ),
+
+                    const SizedBox(height: 8),
+
+                    Text(
+                      "Pendente: R\$ ${pendente.toStringAsFixed(2)}",
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Colors.orange,
+                      ),
+                    ),                    const SizedBox(height: 10),
                     Text(
                       "R\$ ${saldo.toStringAsFixed(2)}",
                       style: const TextStyle(
@@ -352,15 +384,22 @@ Padding(
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
-                                    decoration: t.pago ? TextDecoration.lineThrough : null,
-                                    color: t.pago ? Colors.grey : null,
+                                  decoration:
+                                      model.estaPago(t.id)
+                                          ? TextDecoration.lineThrough
+                                          : null,
+
+                                  color:
+                                      model.estaPago(t.id)
+                                          ? Colors.grey
+                                          : null,
                                     fontWeight:
                                         t.isAutomatica ? FontWeight.bold : FontWeight.normal,
                                   ),
                                 ),
 
                                 if (t.tipo == "Gasto" &&
-                                    !t.pago &&
+                                    !model.estaPago(t.id) &&
                                     (t.data.year < mesSelecionado.year ||
                                         (t.data.year == mesSelecionado.year &&
                                             t.data.month < mesSelecionado.month)))
@@ -388,7 +427,9 @@ Padding(
                                     color: t.tipo == "Ganho" ? Colors.green : Colors.red,
                                     fontWeight: FontWeight.bold,
                                     decoration:
-                                        t.pago ? TextDecoration.lineThrough : null,
+                                        model.estaPago(t.id)
+                                            ? TextDecoration.lineThrough
+                                            : null,
                                   ),
                                 ),
 
@@ -400,12 +441,14 @@ Padding(
                                     onTap: () {
                                       model.marcarComoPago(t.id);
                                     },
-                                    child: Checkbox(
-                                      value: t.pago,
-                                      onChanged: (_) {
-                                        model.marcarComoPago(t.id);
-                                      },
-                                    ),
+                                    child:
+                                      Checkbox(
+                                        value: model.estaPago(t.id),
+
+                                        onChanged: (_) {
+                                          model.marcarComoPago(t.id);
+                                        },
+                                      ),
                                   ),
 
                                 // ✏️ AÇÕES
