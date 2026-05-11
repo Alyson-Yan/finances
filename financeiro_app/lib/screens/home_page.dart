@@ -396,184 +396,164 @@ Padding(
           // =============================
           // LISTA
           // =============================
-if (pendencias.isNotEmpty)
-  Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-    child: Card(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-      ),
-      elevation: 3,
-      child: ListTile(
-        leading: const Icon(
-          Icons.warning_amber_rounded,
-          color: Colors.orange,
-        ),
-        title: Text(
-          "Pendências abertas (${pendencias.length})",
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
+
+Expanded(
+  child: ListView(
+    children: [
+      if (pendencias.isNotEmpty)
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Card(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+            elevation: 3,
+            child: ListTile(
+              leading: const Icon(
+                Icons.warning_amber_rounded,
+                color: Colors.orange,
+              ),
+              title: Text(
+                "Pendências abertas (${pendencias.length})",
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              subtitle: Text(
+                "Total em aberto: R\$ ${pendente.toStringAsFixed(2)}",
+                style: const TextStyle(
+                  color: Colors.orange,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                // próxima etapa: abrir tela de pendências
+              },
+            ),
           ),
         ),
-        subtitle: Text(
-          "Total em aberto: R\$ ${pendente.toStringAsFixed(2)}",
-          style: const TextStyle(
-            color: Colors.orange,
-            fontWeight: FontWeight.w500,
+
+      if (transacoes.isEmpty)
+        const Padding(
+          padding: EdgeInsets.only(top: 40),
+          child: Center(
+            child: Text(
+              "Nenhuma transação neste mês.",
+              style: TextStyle(fontSize: 16),
+            ),
           ),
-        ),
-        trailing: const Icon(Icons.chevron_right),
-        onTap: () {
-          // próxima etapa: abrir tela de pendências
-        },
-      ),
-    ),
-  ),          Expanded(
-            child: transacoes.isEmpty
-                ? const Center(
-                    child: Text(
-                      "Nenhuma transação neste mês.",
-                      style: TextStyle(fontSize: 16),
+        )
+      else
+        ...transacoes.map((t) {
+          return Card(
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+            child: ListTile(
+              leading: Icon(
+                t.isAutomatica
+                    ? Icons.autorenew
+                    : (t.tipo == "Ganho"
+                        ? Icons.trending_up
+                        : Icons.trending_down),
+                color: t.isAutomatica
+                    ? Colors.blue
+                    : (t.tipo == "Ganho" ? Colors.green : Colors.red),
+              ),
+
+              title: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    t.nome,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      decoration: model.estaPago(t.id)
+                          ? TextDecoration.lineThrough
+                          : null,
+                      color: model.estaPago(t.id) ? Colors.grey : null,
+                      fontWeight: t.isAutomatica
+                          ? FontWeight.bold
+                          : FontWeight.normal,
                     ),
-                  )
-                : ListView.builder(
-                    itemCount: transacoes.length,
-                    itemBuilder: (context, index) {
-                      final t = transacoes[index];
-                      return Card(
-                          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                          child: ListTile(
-                            leading: Icon(
-                              t.isAutomatica
-                                  ? Icons.autorenew
-                                  : (t.tipo == "Ganho"
-                                      ? Icons.trending_up
-                                      : Icons.trending_down),
-                              color: t.isAutomatica
-                                  ? Colors.blue
-                                  : (t.tipo == "Ganho" ? Colors.green : Colors.red),
-                            ),
+                  ),
+                ],
+              ),
 
-                            title: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  t.nome,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                  decoration:
-                                      model.estaPago(t.id)
-                                          ? TextDecoration.lineThrough
-                                          : null,
+              subtitle: Text(
+                t.isAutomatica ? "Automático" : t.tipo,
+              ),
 
-                                  color:
-                                      model.estaPago(t.id)
-                                          ? Colors.grey
-                                          : null,
-                                    fontWeight:
-                                        t.isAutomatica ? FontWeight.bold : FontWeight.normal,
-                                  ),
-                                ),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    "R\$ ${t.valor.toStringAsFixed(2)}",
+                    style: TextStyle(
+                      color: t.tipo == "Ganho" ? Colors.green : Colors.red,
+                      fontWeight: FontWeight.bold,
+                      decoration: model.estaPago(t.id)
+                          ? TextDecoration.lineThrough
+                          : null,
+                    ),
+                  ),
 
-                                if (t.tipo == "Gasto" &&
-                                    !model.estaPago(t.id) &&
-                                    (t.data.year < mesSelecionado.year ||
-                                        (t.data.year == mesSelecionado.year &&
-                                            t.data.month < mesSelecionado.month)))
-                                  const Text(
-                                    "⚠️ Dívida acumulada",
-                                    style: TextStyle(
-                                      color: Colors.orange,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                              ],
-                            ),
+                  const SizedBox(width: 8),
 
-                            subtitle: Text(
-                              t.isAutomatica ? "Automático" : t.tipo,
-                            ),
+                  if (t.tipo == "Gasto" && !t.isAutomatica)
+                    Checkbox(
+                      value: model.estaPago(t.id),
+                      onChanged: (_) {
+                        model.marcarComoPago(t.id);
+                      },
+                    ),
 
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                // 💰 VALOR
-                                Text(
-                                  "R\$ ${t.valor.toStringAsFixed(2)}",
-                                  style: TextStyle(
-                                    color: t.tipo == "Ganho" ? Colors.green : Colors.red,
-                                    fontWeight: FontWeight.bold,
-                                    decoration:
-                                        model.estaPago(t.id)
-                                            ? TextDecoration.lineThrough
-                                            : null,
-                                  ),
-                                ),
-
-                                const SizedBox(width: 8),
-
-                                // ✅ CHECKBOX (AGORA REALMENTE CLICÁVEL)
-                                if (t.tipo == "Gasto" && !t.isAutomatica)
-                                  InkWell(
-                                    onTap: () {
-                                      model.marcarComoPago(t.id);
-                                    },
-                                    child:
-                                      Checkbox(
-                                        value: model.estaPago(t.id),
-
-                                        onChanged: (_) {
-                                          model.marcarComoPago(t.id);
-                                        },
-                                      ),
-                                  ),
-
-                                // ✏️ AÇÕES
-                                if (!t.isAutomatica) ...[
-                                  IconButton(
-                                    icon: const Icon(Icons.edit, color: Colors.blue),
-                                    onPressed: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (_) =>
-                                              AdicionarTransacaoPage(transacao: t),
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(Icons.delete, color: Colors.red),
-                                    onPressed: () {
-                                      model.removerItem(t.id);
-                                    },
-                                  ),
-                                ]
-                              ],
-                            ),
-
-                            onTap: () {
-                              _mostrarDetalhes(context, t);
-                            },
+                  if (!t.isAutomatica) ...[
+                    IconButton(
+                      icon: const Icon(Icons.edit, color: Colors.blue),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                AdicionarTransacaoPage(transacao: t),
                           ),
                         );
                       },
-                                        ),
-                                ),
-                              ],
-                            ),
-                            floatingActionButton: FloatingActionButton(
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => const AdicionarTransacaoPage(),
-                                  ),
-                                );
-                              },
-                              child: const Icon(Icons.add),
-                            ),
-                          );
-                        }
-                      }
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete, color: Colors.red),
+                      onPressed: () {
+                        model.removerItem(t.id);
+                      },
+                    ),
+                  ],
+                ],
+              ),
+
+              onTap: () {
+                _mostrarDetalhes(context, t);
+              },
+            ),
+          );
+        }),
+    ],
+  ),
+),
+        ],
+      ),
+
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const AdicionarTransacaoPage(),
+            ),
+          );
+        },
+        child: const Icon(Icons.add),
+      ),
+    );
+  }
+}
