@@ -520,5 +520,31 @@ bool estaPago(String id) {
 
     return total;
   }
+double totalPendenteAteMes(DateTime mes) {
+  double total = 0;
 
+  final transacoes = getTransacoesAteMes(mes);
+
+  for (var t in transacoes) {
+    if (
+      t.tipo == 'Gasto' &&
+      !estaPago(t.id)
+    ) {
+      total += t.valor;
+    }
+  }
+
+  return total;
+}
+List<Transacao> getPendenciasAteMes(DateTime mes) {
+  final lista = getTransacoesAteMes(mes);
+
+  final pendencias = lista.where((t) {
+    return t.tipo == 'Gasto' && !estaPago(t.id);
+  }).toList();
+
+  pendencias.sort((a, b) => a.data.compareTo(b.data));
+
+  return pendencias;
+}
 }

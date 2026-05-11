@@ -146,7 +146,8 @@ switch (ordenacaoSelecionada) {
   final ganhos = model.totalGanhosDoMes(mesSelecionado);
   final gastos = model.totalGastosDoMes(mesSelecionado);
   final saldoDisponivel = model.saldoDisponivel(mesSelecionado);
-  final pendente = model.totalPendenteDoMes(mesSelecionado);
+  final pendente = model.totalPendenteAteMes(mesSelecionado);
+  final pendencias = model.getPendenciasAteMes(mesSelecionado);
 
     return Scaffold(
     appBar: AppBar(
