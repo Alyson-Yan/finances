@@ -4,6 +4,7 @@ import '../models/financeiro_model.dart';
 import '../models/transacao.dart';
 import 'adicionar_transacao_page.dart';
 import 'categoria_page.dart';
+import 'pendencias_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
