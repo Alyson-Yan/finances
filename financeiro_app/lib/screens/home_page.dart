@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../models/financeiro_model.dart';
 import '../models/transacao.dart';
 import '../utils/formatadores.dart';
+import '../theme/app_theme.dart';
 import 'adicionar_transacao_page.dart';
 import 'categoria_page.dart';
 import 'pendencias_page.dart';
@@ -128,6 +129,7 @@ class _HomePageState extends State<HomePage> {
     final pendencias = model.getPendenciasAteMes(mesSelecionado);
 
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Financeiro'),
         centerTitle: true,
@@ -227,132 +229,186 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildResumoCard({
-    required double saldoAcumuladoDisponivel,
-    required double saldoAcumuladoPrevisto,
-    required double saldoDoMes,
-    required double saldoDisponivelDoMes,
-    required double pendente,
-    required double ganhos,
-    required double gastos,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Card(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+Widget _buildResumoCard({
+  required double saldoAcumuladoDisponivel,
+  required double saldoAcumuladoPrevisto,
+  required double saldoDoMes,
+  required double saldoDisponivelDoMes,
+  required double pendente,
+  required double ganhos,
+  required double gastos,
+}) {
+  return Padding(
+    padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+    child: Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(
+          color: AppColors.border,
+          width: 1,
         ),
-        elevation: 5,
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Saldo disponível',
+            style: TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 8),
+
+          Text(
+            formatarMoeda(saldoAcumuladoDisponivel),
+            style: const TextStyle(
+              color: AppColors.accentBlue,
+              fontSize: 36,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -1.2,
+            ),
+          ),
+
+          const SizedBox(height: 8),
+
+          Text(
+            'Resultado acumulado: ${formatarMoeda(saldoAcumuladoPrevisto)}',
+            style: TextStyle(
+              color: saldoAcumuladoPrevisto >= 0
+                  ? AppColors.success
+                  : AppColors.danger,
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+
+          const SizedBox(height: 22),
+
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceSoft,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Column(
+              children: [
+                _buildResumoLinha(
+                  label: 'Resultado deste mês',
+                  valor: saldoDoMes,
+                ),
+                const SizedBox(height: 12),
+                _buildResumoLinha(
+                  label: 'Dinheiro livre',
+                  valor: saldoDisponivelDoMes,
+                ),
+                const SizedBox(height: 12),
+                _buildResumoLinha(
+                  label: 'Contas em aberto',
+                  valor: pendente,
+                  cor: pendente > 0
+                      ? AppColors.warning
+                      : AppColors.success,
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 18),
+
+          Row(
             children: [
-              const Text(
-                'Você tem disponível',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
+              Expanded(
+                child: _buildMiniResumo(
+                  titulo: 'Entradas',
+                  valor: ganhos,
+                  cor: AppColors.success,
                 ),
               ),
-              const SizedBox(height: 8),
-              Text(
-                formatarMoeda(saldoAcumuladoDisponivel),
-                style: const TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.blue,
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildMiniResumo(
+                  titulo: 'Saídas',
+                  valor: gastos,
+                  cor: AppColors.danger,
                 ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Resultado acumulado: ${formatarMoeda(saldoAcumuladoPrevisto)}',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 13,
-                  color:
-                      saldoAcumuladoPrevisto >= 0 ? Colors.green : Colors.red,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 18),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  color: Colors.black12,
-                ),
-                child: Column(
-                  children: [
-                    _buildResumoLinha(
-                      label: 'Resultado deste mês',
-                      valor: saldoDoMes,
-                    ),
-                    const SizedBox(height: 8),
-                    _buildResumoLinha(
-                      label: 'Dinheiro livre este mês',
-                      valor: saldoDisponivelDoMes,
-                    ),
-                    const SizedBox(height: 8),
-                    _buildResumoLinha(
-                      label: 'Contas em aberto',
-                      valor: pendente,
-                      cor: pendente > 0 ? Colors.orange : Colors.green,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Entradas: ${formatarMoeda(ganhos)}',
-                    style: const TextStyle(
-                      color: Colors.green,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  Text(
-                    'Saídas: ${formatarMoeda(gastos)}',
-                    style: const TextStyle(
-                      color: Colors.red,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
               ),
             ],
           ),
-        ),
+        ],
       ),
-    );
-  }
-
-  Widget _buildResumoLinha({
-    required String label,
-    required double valor,
-    Color? cor,
-  }) {
-    final corValor = cor ?? (valor >= 0 ? Colors.green : Colors.red);
-
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    ),
+  );
+}
+Widget _buildMiniResumo({
+  required String titulo,
+  required double valor,
+  required Color cor,
+}) {
+  return Container(
+    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+    decoration: BoxDecoration(
+      color: AppColors.surfaceSoft,
+      borderRadius: BorderRadius.circular(18),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          label,
-          style: const TextStyle(fontWeight: FontWeight.w500),
+          titulo,
+          style: const TextStyle(
+            color: AppColors.textSecondary,
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+          ),
         ),
+        const SizedBox(height: 6),
         Text(
           formatarMoeda(valor),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: corValor,
+            color: cor,
+            fontSize: 14,
+            fontWeight: FontWeight.w900,
           ),
         ),
       ],
-    );
-  }
+    ),
+  );
+}
+
+Widget _buildResumoLinha({
+  required String label,
+  required double valor,
+  Color? cor,
+}) {
+  final corValor = cor ?? (valor >= 0 ? AppColors.success : AppColors.danger);
+
+  return Row(
+    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    children: [
+      Text(
+        label,
+        style: const TextStyle(
+          color: AppColors.textSecondary,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      Text(
+        formatarMoeda(valor),
+        style: TextStyle(
+          fontWeight: FontWeight.w800,
+          color: corValor,
+        ),
+      ),
+    ],
+  );
+}
 
   Widget _buildSaudeFinanceira(double disponivel, double pendente) {
     final semPendencia = pendente <= 0;
