@@ -34,6 +34,12 @@ class _AdicionarTransacaoPageState extends State<AdicionarTransacaoPage> {
   bool _usarValorDaParcela = false;
   bool _isFixo = false;
 
+  bool get _editando => widget.transacao != null;
+  bool get _editandoParcelado =>
+      _editando && widget.transacao.id.toString().startsWith('parcelado_');
+  bool get _editandoFixo =>
+      _editando && widget.transacao.id.toString().startsWith('fixo_');
+
   @override
   void initState() {
     super.initState();
@@ -41,13 +47,31 @@ class _AdicionarTransacaoPageState extends State<AdicionarTransacaoPage> {
     if (widget.transacao != null) {
       final t = widget.transacao!;
       final formatter = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
+      final infoParcelamento = _extrairParcelamento(t.nome);
 
-      _descricaoController.text = t.nome;
+      _descricaoController.text = _limparNomeGerado(t.nome);
       _descricaoDetalhadaController.text = t.descricaoDetalhada;
       _valorController.text = formatter.format(t.valor);
       _tipoSelecionado = t.tipo;
       _categoriaSelecionada = t.categoria;
       _dataSelecionada = t.data;
+
+      if (_editandoParcelado) {
+        _usarValorDaParcela = true;
+        _parcelasController.text = infoParcelamento?.total.toString() ?? '1';
+
+        final parcelaAtual = infoParcelamento?.atual ?? 1;
+        _dataSelecionada = DateTime(
+          t.data.year,
+          t.data.month - (parcelaAtual - 1),
+          t.data.day,
+        );
+      }
+
+      if (_editandoFixo) {
+        _isFixo = true;
+        _dataInicioFixo = t.data;
+      }
     }
   }
 
@@ -123,6 +147,27 @@ class _AdicionarTransacaoPageState extends State<AdicionarTransacaoPage> {
           data: _dataSelecionada,
         );
       }
+    } else if (_editandoParcelado) {
+      model.editarParcelado(
+        id: _idOrigemVirtual(widget.transacao.id),
+        nome: nome,
+        descricaoDetalhada: descricaoDetalhada,
+        valorTotal: valorTotal,
+        tipo: tipoEnum,
+        categoria: categoria,
+        parcelas: parcelas,
+        dataInicial: _dataSelecionada,
+      );
+    } else if (_editandoFixo) {
+      model.editarRecorrencia(
+        id: _idOrigemVirtual(widget.transacao.id),
+        nome: nome,
+        descricaoDetalhada: descricaoDetalhada,
+        valor: valorInformado,
+        tipo: _tipoSelecionado,
+        categoria: categoria,
+        dataInicio: _dataInicioFixo,
+      );
     } else {
       model.editarTransacao(
         id: widget.transacao.id,
@@ -187,6 +232,10 @@ class _AdicionarTransacaoPageState extends State<AdicionarTransacaoPage> {
               MediaQuery.of(context).viewInsets.bottom + 28,
             ),
             children: [
+              if (_editandoParcelado || _editandoFixo) ...[
+                _buildAvisoEdicaoEspecial(),
+                const SizedBox(height: 14),
+              ],
               _buildSecao(
                 title: 'Informações principais',
                 children: [
@@ -214,18 +263,23 @@ class _AdicionarTransacaoPageState extends State<AdicionarTransacaoPage> {
               _buildSecao(
                 title: 'Valores e tipo',
                 children: [
-                  CheckboxListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Fixo mensal'),
-                    subtitle: const Text('Repete todo mês a partir da data escolhida.'),
-                    value: _isFixo,
-                    onChanged: (v) => setState(() => _isFixo = v ?? false),
-                  ),
+                  if (!_editandoParcelado)
+                    CheckboxListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Fixo mensal'),
+                      subtitle: const Text('Repete todo mês a partir da data escolhida.'),
+                      value: _isFixo,
+                      onChanged: _editandoFixo
+                          ? null
+                          : (v) => setState(() => _isFixo = v ?? false),
+                    ),
                   if (parcelas > 1)
                     CheckboxListTile(
                       contentPadding: EdgeInsets.zero,
                       value: _usarValorDaParcela,
-                      onChanged: (v) => setState(() => _usarValorDaParcela = v ?? false),
+                      onChanged: _editandoParcelado
+                          ? null
+                          : (v) => setState(() => _usarValorDaParcela = v ?? false),
                       title: const Text('Valor informado é da parcela'),
                     ),
                   const SizedBox(height: 12),
@@ -247,6 +301,7 @@ class _AdicionarTransacaoPageState extends State<AdicionarTransacaoPage> {
                   const SizedBox(height: 12),
                   TextField(
                     controller: _parcelasController,
+                    enabled: !_editandoFixo,
                     keyboardType: TextInputType.number,
                     textInputAction: TextInputAction.next,
                     decoration: const InputDecoration(
@@ -286,11 +341,12 @@ class _AdicionarTransacaoPageState extends State<AdicionarTransacaoPage> {
               _buildSecao(
                 title: 'Datas',
                 children: [
-                  _buildLinhaData(
-                    label: 'Data',
-                    data: _dataSelecionada,
-                    onPressed: () => _selecionarData(false),
-                  ),
+                  if (!_editandoFixo)
+                    _buildLinhaData(
+                      label: _editandoParcelado ? 'Início do parcelamento' : 'Data',
+                      data: _dataSelecionada,
+                      onPressed: () => _selecionarData(false),
+                    ),
                   if (_isFixo)
                     _buildLinhaData(
                       label: 'Início do fixo',
@@ -311,6 +367,37 @@ class _AdicionarTransacaoPageState extends State<AdicionarTransacaoPage> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildAvisoEdicaoEspecial() {
+    final texto = _editandoParcelado
+        ? 'Você está editando o parcelamento inteiro. As parcelas geradas serão recalculadas.'
+        : 'Você está editando o lançamento fixo mensal inteiro.';
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.warning.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.warning.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.info_outline, color: AppColors.warning),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              texto,
+              style: const TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -367,6 +454,36 @@ class _AdicionarTransacaoPageState extends State<AdicionarTransacaoPage> {
       ],
     );
   }
+
+  String _limparNomeGerado(String nome) {
+    return nome.replaceFirst(RegExp(r'\s*\([^)]*\)\s*$'), '').trim();
+  }
+
+  _ParcelamentoInfo? _extrairParcelamento(String nome) {
+    final match = RegExp(r'\((\d+)\/(\d+)\)').firstMatch(nome);
+    if (match == null) return null;
+
+    return _ParcelamentoInfo(
+      atual: int.tryParse(match.group(1) ?? '') ?? 1,
+      total: int.tryParse(match.group(2) ?? '') ?? 1,
+    );
+  }
+
+  String _idOrigemVirtual(String id) {
+    final partes = id.split('_');
+    if (partes.length < 2) return id;
+    return partes[1];
+  }
+}
+
+class _ParcelamentoInfo {
+  final int atual;
+  final int total;
+
+  _ParcelamentoInfo({
+    required this.atual,
+    required this.total,
+  });
 }
 
 class _CurrencyInputFormatter extends TextInputFormatter {
