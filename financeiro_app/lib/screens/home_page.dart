@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../models/app_config_model.dart';
 import '../models/financeiro_model.dart';
 import '../models/transacao.dart';
-import '../utils/formatadores.dart';
+import '../routes/app_routes.dart';
 import '../theme/app_theme.dart';
+import '../utils/formatadores.dart';
+import '../widgets/app_drawer.dart';
 import 'adicionar_transacao_page.dart';
-import 'categoria_page.dart';
 import 'pendencias_page.dart';
 
 class HomePage extends StatefulWidget {
@@ -17,8 +19,6 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  Ordenacao ordenacaoSelecionada = Ordenacao.dataMaisRecente;
-  String filtroNome = '';
   DateTime mesSelecionado = DateTime.now();
 
   void mesAnterior() {
@@ -33,164 +33,62 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-  void _mostrarDetalhes(BuildContext context, Transacao t) {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Detalhes da transação'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Nome: ${t.nome}'),
-            const SizedBox(height: 8),
-            Text('Tipo: ${t.tipo}'),
-            const SizedBox(height: 8),
-            Text('Valor: ${formatarMoeda(t.valor)}'),
-            const SizedBox(height: 8),
-            Text('Data: ${mesAnoCurto(t.data)}'),
-            const SizedBox(height: 12),
-            const Text(
-              'Descrição detalhada:',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              t.descricaoDetalhada.isEmpty
-                  ? 'Sem descrição.'
-                  : t.descricaoDetalhada,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Fechar'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _confirmarExclusao(
-    FinanceiroModel model,
-    Transacao t,
-  ) async {
-    final bool removeGrupo =
-        t.id.startsWith('parcelado_') || t.id.startsWith('fixo_');
-
-    final confirmou = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Excluir lançamento?'),
-        content: Text(
-          removeGrupo
-              ? 'Isso removerá este lançamento e suas ocorrências relacionadas. Essa ação não pode ser desfeita.'
-              : 'Essa ação não pode ser desfeita.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text(
-              'Excluir',
-              style: TextStyle(color: Colors.red),
-            ),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmou == true) {
-      model.removerItem(t.id);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    final model = Provider.of<FinanceiroModel>(context);
+    final model = context.watch<FinanceiroModel>();
+    final config = context.watch<AppConfigModel>();
 
-    List<Transacao> transacoes = model.getTransacoesDoMes(mesSelecionado);
-    final relatorioCategorias = _gastosPorCategoria(transacoes);
-    transacoes = model.filtrarPorNome(transacoes, filtroNome);
-    transacoes = model.ordenarTransacoes(transacoes, ordenacaoSelecionada);
-
-    final saldoDoMes = model.saldoDoMesPrevisto(mesSelecionado);
-    final saldoAcumuladoDisponivel =
-        model.saldoAcumuladoDisponivel(mesSelecionado);
-    final saldoAcumuladoPrevisto = model.saldoAcumuladoPrevisto(mesSelecionado);
     final ganhos = model.totalGanhosDoMes(mesSelecionado);
     final gastos = model.totalGastosDoMes(mesSelecionado);
-    final saldoDisponivelDoMes = model.saldoDoMesDisponivel(mesSelecionado);
-    final pendente = model.totalPendenteAteMes(mesSelecionado);
+    final pago = model.totalPagoDoMes(mesSelecionado);
+    final pendenteMes = model.totalPendenteDoMes(mesSelecionado);
+    final pendenteTotal = model.totalPendenteAteMes(mesSelecionado);
+    final saldoDisponivel = model.saldoAcumuladoDisponivel(mesSelecionado);
+    final saldoPrevisto = model.saldoAcumuladoPrevisto(mesSelecionado);
+    final saldoDoMes = model.saldoDoMesPrevisto(mesSelecionado);
     final pendencias = model.getPendenciasAteMes(mesSelecionado);
+    final categorias = _gastosPorCategoria(model.getTransacoesDoMes(mesSelecionado));
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      drawer: const AppDrawer(selectedItem: AppDrawerItem.inicio),
       appBar: AppBar(
-        title: const Text('Financeiro'),
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.category),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const CategoriasPage(),
-                ),
-              );
-            },
-          ),
-        ],
+        title: const Text('Início'),
       ),
-      body: Column(
-        children: [
-          const SizedBox(height: 10),
-          _buildSeletorMes(),
-          const SizedBox(height: 10),
-          _buildResumoCard(
-            saldoAcumuladoDisponivel: saldoAcumuladoDisponivel,
-            saldoAcumuladoPrevisto: saldoAcumuladoPrevisto,
-            saldoDoMes: saldoDoMes,
-            saldoDisponivelDoMes: saldoDisponivelDoMes,
-            pendente: pendente,
-            ganhos: ganhos,
-            gastos: gastos,
-          ),
-          _buildFiltros(),
-          Expanded(
-            child: ListView(
-              children: [
-                _buildSaudeFinanceira(
-                  saldoAcumuladoDisponivel,
-                  pendente,
-                ),
-                _buildRelatorioCategorias(relatorioCategorias),
-                if (pendencias.isNotEmpty)
-                  _buildPendenciasCard(
-                    pendencias: pendencias,
-                    pendente: pendente,
-                  ),
-                if (transacoes.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.only(top: 40),
-                    child: Center(
-                      child: Text(
-                        'Nenhuma transação neste mês.',
-                        style: TextStyle(fontSize: 16),
-                      ),
-                    ),
-                  )
-                else
-                  ...transacoes.map((t) => _buildTransacaoCard(model, t)),
-              ],
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+          children: [
+            _buildHeader(config),
+            const SizedBox(height: 14),
+            _buildSeletorMes(),
+            const SizedBox(height: 14),
+            _buildHeroSaldo(
+              saldoDisponivel: saldoDisponivel,
+              saldoPrevisto: saldoPrevisto,
+              saldoDoMes: saldoDoMes,
             ),
-          ),
-        ],
+            const SizedBox(height: 14),
+            _buildGridIndicadores(
+              ganhos: ganhos,
+              gastos: gastos,
+              pago: pago,
+              pendenteMes: pendenteMes,
+            ),
+            const SizedBox(height: 14),
+            _buildSaudeFinanceira(
+              saldoDisponivel: saldoDisponivel,
+              pendenteTotal: pendenteTotal,
+            ),
+            if (pendencias.isNotEmpty) ...[
+              const SizedBox(height: 14),
+              _buildPendenciasCard(pendencias, pendenteTotal),
+            ],
+            const SizedBox(height: 14),
+            _buildCategoriaPreview(categorias),
+            const SizedBox(height: 14),
+            _buildAtalhos(),
+          ],
+        ),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
@@ -206,54 +104,105 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildSeletorMes() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceAround,
+  Widget _buildHeader(AppConfigModel config) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        IconButton(
-          onPressed: mesAnterior,
-          icon: const Icon(Icons.arrow_back),
-        ),
         Text(
-          nomeMesAno(mesSelecionado),
+          config.saudacao,
           style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
+            color: AppColors.textPrimary,
+            fontSize: 26,
+            fontWeight: FontWeight.w900,
+            letterSpacing: -0.8,
           ),
         ),
-        IconButton(
-          onPressed: proximoMes,
-          icon: const Icon(Icons.arrow_forward),
+        const SizedBox(height: 4),
+        const Text(
+          'Veja o estado do seu mês em poucos segundos.',
+          style: TextStyle(
+            color: AppColors.textSecondary,
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ],
     );
   }
 
-Widget _buildResumoCard({
-  required double saldoAcumuladoDisponivel,
-  required double saldoAcumuladoPrevisto,
-  required double saldoDoMes,
-  required double saldoDisponivelDoMes,
-  required double pendente,
-  required double ganhos,
-  required double gastos,
-}) {
-  return Padding(
-    padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
-    child: Container(
-      width: double.infinity,
+  Widget _buildSeletorMes() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        children: [
+          IconButton(
+            onPressed: mesAnterior,
+            icon: const Icon(Icons.chevron_left),
+          ),
+          Expanded(
+            child: Text(
+              nomeMesAno(mesSelecionado),
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 17,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+          IconButton(
+            onPressed: proximoMes,
+            icon: const Icon(Icons.chevron_right),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeroSaldo({
+    required double saldoDisponivel,
+    required double saldoPrevisto,
+    required double saldoDoMes,
+  }) {
+    final positivo = saldoDisponivel >= 0;
+
+    return Container(
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(
-          color: AppColors.border,
-          width: 1,
-        ),
+        borderRadius: BorderRadius.circular(30),
+        border: Border.all(color: AppColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: AppColors.primaryBlue.withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: const Icon(
+                  Icons.account_balance_wallet_outlined,
+                  color: AppColors.accentBlue,
+                ),
+              ),
+              const Spacer(),
+              _buildStatusPill(
+                texto: positivo ? 'positivo' : 'atenção',
+                cor: positivo ? AppColors.success : AppColors.warning,
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
           const Text(
             'Saldo disponível',
             style: TextStyle(
@@ -263,225 +212,443 @@ Widget _buildResumoCard({
             ),
           ),
           const SizedBox(height: 8),
-
           Text(
-            formatarMoeda(saldoAcumuladoDisponivel),
-            style: const TextStyle(
-              color: AppColors.accentBlue,
-              fontSize: 36,
+            formatarMoeda(saldoDisponivel),
+            style: TextStyle(
+              color: positivo ? AppColors.textPrimary : AppColors.warning,
+              fontSize: 34,
               fontWeight: FontWeight.w900,
               letterSpacing: -1.2,
             ),
           ),
-
-          const SizedBox(height: 8),
-
+          const SizedBox(height: 12),
           Text(
-            'Resultado acumulado: ${formatarMoeda(saldoAcumuladoPrevisto)}',
+            'Resultado acumulado previsto: ${formatarMoeda(saldoPrevisto)}',
             style: TextStyle(
-              color: saldoAcumuladoPrevisto >= 0
-                  ? AppColors.success
-                  : AppColors.danger,
+              color: saldoPrevisto >= 0 ? AppColors.success : AppColors.danger,
               fontSize: 13,
               fontWeight: FontWeight.w700,
             ),
           ),
-
-          const SizedBox(height: 22),
-
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppColors.surfaceSoft,
-              borderRadius: BorderRadius.circular(20),
+          const SizedBox(height: 8),
+          Text(
+            'Resultado do mês: ${formatarMoeda(saldoDoMes)}',
+            style: TextStyle(
+              color: saldoDoMes >= 0 ? AppColors.success : AppColors.danger,
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
             ),
-            child: Column(
-              children: [
-                _buildResumoLinha(
-                  label: 'Resultado deste mês',
-                  valor: saldoDoMes,
-                ),
-                const SizedBox(height: 12),
-                _buildResumoLinha(
-                  label: 'Dinheiro livre',
-                  valor: saldoDisponivelDoMes,
-                ),
-                const SizedBox(height: 12),
-                _buildResumoLinha(
-                  label: 'Contas em aberto',
-                  valor: pendente,
-                  cor: pendente > 0
-                      ? AppColors.warning
-                      : AppColors.success,
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 18),
-
-          Row(
-            children: [
-              Expanded(
-                child: _buildMiniResumo(
-                  titulo: 'Entradas',
-                  valor: ganhos,
-                  cor: AppColors.success,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildMiniResumo(
-                  titulo: 'Saídas',
-                  valor: gastos,
-                  cor: AppColors.danger,
-                ),
-              ),
-            ],
           ),
         ],
       ),
-    ),
-  );
-}
-Widget _buildMiniResumo({
-  required String titulo,
-  required double valor,
-  required Color cor,
-}) {
-  return Container(
-    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-    decoration: BoxDecoration(
-      color: AppColors.surfaceSoft,
-      borderRadius: BorderRadius.circular(18),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    );
+  }
+
+  Widget _buildGridIndicadores({
+    required double ganhos,
+    required double gastos,
+    required double pago,
+    required double pendenteMes,
+  }) {
+    return Column(
       children: [
-        Text(
-          titulo,
-          style: const TextStyle(
-            color: AppColors.textSecondary,
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
-          ),
+        Row(
+          children: [
+            Expanded(
+              child: _buildIndicador(
+                titulo: 'Entradas',
+                valor: ganhos,
+                icon: Icons.trending_up,
+                cor: AppColors.success,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _buildIndicador(
+                titulo: 'Saídas',
+                valor: gastos,
+                icon: Icons.trending_down,
+                cor: AppColors.danger,
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 6),
-        Text(
-          formatarMoeda(valor),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            color: cor,
-            fontSize: 14,
-            fontWeight: FontWeight.w900,
-          ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(
+              child: _buildIndicador(
+                titulo: 'Pago',
+                valor: pago,
+                icon: Icons.check_circle_outline,
+                cor: AppColors.accentBlue,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _buildIndicador(
+                titulo: 'Em aberto',
+                valor: pendenteMes,
+                icon: Icons.warning_amber_rounded,
+                cor: AppColors.warning,
+              ),
+            ),
+          ],
         ),
       ],
-    ),
-  );
-}
+    );
+  }
 
-Widget _buildResumoLinha({
-  required String label,
-  required double valor,
-  Color? cor,
-}) {
-  final corValor = cor ?? (valor >= 0 ? AppColors.success : AppColors.danger);
-
-  return Row(
-    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-    children: [
-      Text(
-        label,
-        style: const TextStyle(
-          color: AppColors.textSecondary,
-          fontWeight: FontWeight.w600,
-        ),
+  Widget _buildIndicador({
+    required String titulo,
+    required double valor,
+    required IconData icon,
+    required Color cor,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppColors.border),
       ),
-      Text(
-        formatarMoeda(valor),
-        style: TextStyle(
-          fontWeight: FontWeight.w800,
-          color: corValor,
-        ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: cor, size: 22),
+          const SizedBox(height: 12),
+          Text(
+            titulo,
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            formatarMoeda(valor),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: cor,
+              fontSize: 15,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
       ),
-    ],
-  );
-}
+    );
+  }
 
-  Widget _buildSaudeFinanceira(double disponivel, double pendente) {
-    final semPendencia = pendente <= 0;
-    final cobrePendencias = disponivel >= pendente;
+  Widget _buildSaudeFinanceira({
+    required double saldoDisponivel,
+    required double pendenteTotal,
+  }) {
+    final semPendencia = pendenteTotal <= 0;
+    final cobrePendencias = saldoDisponivel >= pendenteTotal;
+    final seguro = semPendencia || cobrePendencias;
 
     final mensagem = semPendencia
         ? 'Sem contas em aberto até este mês.'
         : cobrePendencias
             ? 'Seu dinheiro disponível cobre as contas em aberto.'
-            : 'Atenção: contas em aberto passam do dinheiro disponível.';
+            : 'As contas abertas passam do dinheiro disponível.';
 
-    final cor = semPendencia || cobrePendencias ? Colors.green : Colors.red;
+    return _buildInfoCard(
+      icon: seguro ? Icons.verified_outlined : Icons.error_outline,
+      iconColor: seguro ? AppColors.success : AppColors.warning,
+      title: 'Saúde financeira',
+      subtitle: mensagem,
+    );
+  }
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      child: Card(
-        child: ListTile(
-          leading: Icon(
-            semPendencia || cobrePendencias
-                ? Icons.check_circle_outline
-                : Icons.error_outline,
-            color: cor,
+  Widget _buildPendenciasCard(List<Transacao> pendencias, double pendenteTotal) {
+    final principais = pendencias.take(3).toList();
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.warning_amber_rounded, color: AppColors.warning),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  '${pendencias.length} pendência(s) aberta(s)',
+                  style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              Text(
+                formatarMoeda(pendenteTotal),
+                style: const TextStyle(
+                  color: AppColors.warning,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
           ),
-          title: const Text(
-            'Saúde financeira',
-            style: TextStyle(fontWeight: FontWeight.bold),
+          const SizedBox(height: 14),
+          ...principais.map(
+            (t) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      t.nome,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    formatarMoeda(t.valor),
+                    style: const TextStyle(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
-          subtitle: Text(mensagem),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: TextButton.icon(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => PendenciasPage(mesSelecionado: mesSelecionado),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.open_in_new),
+              label: const Text('Ver pendências'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCategoriaPreview(Map<String, double> categorias) {
+    if (categorias.isEmpty) {
+      return _buildInfoCard(
+        icon: Icons.category_outlined,
+        iconColor: AppColors.textMuted,
+        title: 'Categorias do mês',
+        subtitle: 'Nenhum gasto categorizado neste mês.',
+      );
+    }
+
+    final principais = categorias.entries.take(3).toList();
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Maiores gastos do mês',
+            style: TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 17,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 14),
+          ...principais.map(
+            (e) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      e.key,
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    formatarMoeda(e.value),
+                    style: const TextStyle(
+                      color: AppColors.danger,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          SizedBox(
+            width: double.infinity,
+            child: TextButton.icon(
+              onPressed: () {
+                Navigator.pushReplacementNamed(context, AppRoutes.relatorioAnual);
+              },
+              icon: const Icon(Icons.insights_outlined),
+              label: const Text('Abrir relatório completo'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAtalhos() {
+    return Row(
+      children: [
+        Expanded(
+          child: _buildAtalho(
+            icon: Icons.receipt_long_outlined,
+            title: 'Lançamentos',
+            subtitle: 'Ver lista completa',
+            route: AppRoutes.lancamentos,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _buildAtalho(
+            icon: Icons.insights_outlined,
+            title: 'Relatórios',
+            subtitle: 'Analisar gastos',
+            route: AppRoutes.relatorioAnual,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAtalho({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required String route,
+  }) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(24),
+      onTap: () => Navigator.pushReplacementNamed(context, route),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, color: AppColors.accentBlue),
+            const SizedBox(height: 12),
+            Text(
+              title,
+              style: const TextStyle(
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              subtitle,
+              style: const TextStyle(
+                color: AppColors.textMuted,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildRelatorioCategorias(Map<String, double> categorias) {
-    if (categorias.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    final principais = categorias.entries.take(3).toList();
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Maiores gastos do mês',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              ...principais.map(
-                (e) => Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 3),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(e.key),
-                      Text(
-                        formatarMoeda(e.value),
-                        style: const TextStyle(
-                          color: Colors.red,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
+  Widget _buildInfoCard({
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String subtitle,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: iconColor),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w900,
                   ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatusPill({
+    required String texto,
+    required Color cor,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: cor.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: cor.withValues(alpha: 0.4)),
+      ),
+      child: Text(
+        texto.toUpperCase(),
+        style: TextStyle(
+          color: cor,
+          fontSize: 10,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 0.8,
         ),
       ),
     );
@@ -498,202 +665,5 @@ Widget _buildResumoLinha({
     return Map.fromEntries(
       gastos.entries.toList()..sort((a, b) => b.value.compareTo(a.value)),
     );
-  }
-
-  Widget _buildFiltros() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Column(
-        children: [
-          TextField(
-            decoration: const InputDecoration(
-              labelText: 'Filtrar por nome',
-              prefixIcon: Icon(Icons.search),
-            ),
-            onChanged: (value) {
-              setState(() {
-                filtroNome = value;
-              });
-            },
-          ),
-          const SizedBox(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text('Ordenar por:'),
-              DropdownButton<Ordenacao>(
-                value: ordenacaoSelecionada,
-                onChanged: (value) {
-                  setState(() {
-                    ordenacaoSelecionada = value!;
-                  });
-                },
-                items: const [
-                  DropdownMenuItem(
-                    value: Ordenacao.dataMaisRecente,
-                    child: Text('Data ↓'),
-                  ),
-                  DropdownMenuItem(
-                    value: Ordenacao.dataMaisAntiga,
-                    child: Text('Data ↑'),
-                  ),
-                  DropdownMenuItem(
-                    value: Ordenacao.valorMaior,
-                    child: Text('Valor ↓'),
-                  ),
-                  DropdownMenuItem(
-                    value: Ordenacao.valorMenor,
-                    child: Text('Valor ↑'),
-                  ),
-                  DropdownMenuItem(
-                    value: Ordenacao.nomeAZ,
-                    child: Text('Nome A-Z'),
-                  ),
-                  DropdownMenuItem(
-                    value: Ordenacao.nomeZA,
-                    child: Text('Nome Z-A'),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPendenciasCard({
-    required List<Transacao> pendencias,
-    required double pendente,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Card(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-        ),
-        elevation: 3,
-        child: ListTile(
-          leading: const Icon(
-            Icons.warning_amber_rounded,
-            color: Colors.orange,
-          ),
-          title: Text(
-            'Pendências abertas (${pendencias.length})',
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
-          subtitle: Text(
-            'Total em aberto: ${formatarMoeda(pendente)}',
-            style: const TextStyle(
-              color: Colors.orange,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          trailing: const Icon(Icons.chevron_right),
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => PendenciasPage(
-                  mesSelecionado: mesSelecionado,
-                ),
-              ),
-            );
-          },
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTransacaoCard(FinanceiroModel model, Transacao t) {
-    final pago = model.estaPago(t.id);
-    final podeEditar =
-        !t.id.startsWith('parcelado_') && !t.id.startsWith('fixo_');
-
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      child: ListTile(
-        leading: Icon(
-          t.isAutomatica
-              ? Icons.autorenew
-              : (t.tipo == 'Ganho' ? Icons.trending_up : Icons.trending_down),
-          color: t.isAutomatica
-              ? Colors.blue
-              : (t.tipo == 'Ganho' ? Colors.green : Colors.red),
-        ),
-        title: Text(
-          t.nome,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            decoration: pago ? TextDecoration.lineThrough : null,
-            color: pago ? Colors.grey : null,
-            fontWeight: t.isAutomatica ? FontWeight.bold : FontWeight.normal,
-          ),
-        ),
-        subtitle: Text(_subtituloTransacao(t, pago)),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              formatarMoeda(t.valor),
-              style: TextStyle(
-                color: t.tipo == 'Ganho' ? Colors.green : Colors.red,
-                fontWeight: FontWeight.bold,
-                decoration: pago ? TextDecoration.lineThrough : null,
-              ),
-            ),
-            const SizedBox(width: 8),
-            if (t.tipo == 'Gasto' && !t.isAutomatica)
-              Checkbox(
-                value: pago,
-                onChanged: (_) {
-                  model.marcarComoPago(t.id);
-                },
-              ),
-            if (!t.isAutomatica)
-              PopupMenuButton<String>(
-                onSelected: (value) {
-                  if (value == 'editar' && podeEditar) {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => AdicionarTransacaoPage(transacao: t),
-                      ),
-                    );
-                    return;
-                  }
-
-                  if (value == 'excluir') {
-                    _confirmarExclusao(model, t);
-                  }
-                },
-                itemBuilder: (_) => [
-                  if (podeEditar)
-                    const PopupMenuItem(
-                      value: 'editar',
-                      child: Text('Editar'),
-                    ),
-                  const PopupMenuItem(
-                    value: 'excluir',
-                    child: Text('Excluir'),
-                  ),
-                ],
-              ),
-          ],
-        ),
-        onTap: () {
-          _mostrarDetalhes(context, t);
-        },
-      ),
-    );
-  }
-
-  String _subtituloTransacao(Transacao t, bool pago) {
-    if (t.tipo == 'Gasto') {
-      return pago ? 'Gasto · pago' : 'Gasto · em aberto';
-    }
-
-    return t.isAutomatica ? 'Automático' : t.tipo;
   }
 }

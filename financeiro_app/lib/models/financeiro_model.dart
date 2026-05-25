@@ -22,21 +22,13 @@ class FinanceiroModel extends ChangeNotifier {
   List<Recorrencia> recorrentes = [];
   List<Parcelado> parcelados = [];
   List<Categoria> categorias = [];
-
-  /// Estado operacional de pagamento.
-  /// A transação pode ser real ou virtual, mas o pagamento é controlado pelo ID.
   Map<String, bool> pagamentos = {};
 
   FinanceiroModel(String? savedData) {
-    if (savedData == null || savedData.isEmpty) {
-      return;
-    }
+    if (savedData == null || savedData.isEmpty) return;
 
     final decoded = jsonDecode(savedData);
-
-    if (decoded is! Map<String, dynamic>) {
-      return;
-    }
+    if (decoded is! Map<String, dynamic>) return;
 
     if (decoded['transacoes'] != null) {
       transacoes = (decoded['transacoes'] as List)
@@ -67,10 +59,6 @@ class FinanceiroModel extends ChangeNotifier {
     }
   }
 
-  // ================================
-  // PERSISTÊNCIA
-  // ================================
-
   Future<void> _salvarDados() async {
     final prefs = await SharedPreferences.getInstance();
 
@@ -85,17 +73,14 @@ class FinanceiroModel extends ChangeNotifier {
     await prefs.setString('financeiro', jsonEncode(data));
   }
 
-  // ================================
-  // TRANSAÇÃO NORMAL
-  // ================================
-
   void adicionarTransacao(
     String nome,
     String descricaoDetalhada,
     double valor,
     String tipo,
-    String categoria,
-  ) {
+    String categoria, {
+    DateTime? data,
+  }) {
     final nova = Transacao(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       nome: nome,
@@ -103,7 +88,7 @@ class FinanceiroModel extends ChangeNotifier {
       valor: valor,
       tipo: tipo,
       categoria: categoria,
-      data: DateTime.now(),
+      data: data ?? DateTime.now(),
     );
 
     transacoes.add(nova);
@@ -121,10 +106,7 @@ class FinanceiroModel extends ChangeNotifier {
     required DateTime data,
   }) {
     final index = transacoes.indexWhere((t) => t.id == id);
-
-    if (index == -1) {
-      return;
-    }
+    if (index == -1) return;
 
     transacoes[index] = Transacao(
       id: id,
@@ -146,10 +128,6 @@ class FinanceiroModel extends ChangeNotifier {
     _salvarDados();
     notifyListeners();
   }
-
-  // ================================
-  // PARCELADO
-  // ================================
 
   void adicionarParcelado({
     required String nome,
@@ -181,10 +159,6 @@ class FinanceiroModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ================================
-  // FIXO MENSAL
-  // ================================
-
   void adicionarFixo({
     required String nome,
     required String descricaoDetalhada,
@@ -214,55 +188,36 @@ class FinanceiroModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ================================
-  // REMOÇÃO GENÉRICA
-  // ================================
-
   void removerItem(String id) {
     if (id.startsWith('parcelado_')) {
-      final parceladoId = id.split('_')[1];
-      removerParcelado(parceladoId);
+      removerParcelado(id.split('_')[1]);
       return;
     }
 
     if (id.startsWith('fixo_')) {
-      final recorrenteId = id.split('_')[1];
-      removerRecorrencia(recorrenteId);
+      removerRecorrencia(id.split('_')[1]);
       return;
     }
 
     removerTransacao(id);
   }
 
-  // ================================
-  // PAGAMENTOS
-  // ================================
-
-  bool estaPago(String id) {
-    return pagamentos[id] ?? false;
-  }
+  bool estaPago(String id) => pagamentos[id] ?? false;
 
   void marcarComoPago(String id) {
     pagamentos[id] = !estaPago(id);
-
     _salvarDados();
     notifyListeners();
   }
 
   void marcarListaComoPaga(List<Transacao> lista) {
     for (final t in lista) {
-      if (t.tipo == 'Gasto') {
-        pagamentos[t.id] = true;
-      }
+      if (t.tipo == 'Gasto') pagamentos[t.id] = true;
     }
 
     _salvarDados();
     notifyListeners();
   }
-
-  // ================================
-  // MOTOR CENTRAL MENSAL
-  // ================================
 
   List<Transacao> _getTransacoesDoMesBase(DateTime mesSelecionado) {
     final lista = <Transacao>[];
@@ -276,9 +231,7 @@ class FinanceiroModel extends ChangeNotifier {
     );
 
     for (final p in parcelados) {
-      final parcelas = p.gerarParcelas();
-
-      for (final parcela in parcelas) {
+      for (final parcela in p.gerarParcelas()) {
         if (parcela.data.year == mesSelecionado.year &&
             parcela.data.month == mesSelecionado.month) {
           lista.add(
@@ -361,10 +314,6 @@ class FinanceiroModel extends ChangeNotifier {
     return a.year < b.year || (a.year == b.year && a.month <= b.month);
   }
 
-  // ================================
-  // TOTAIS DO MÊS
-  // ================================
-
   double totalGanhosDoMes(DateTime mes) {
     return getTransacoesDoMes(mes)
         .where((t) => t.tipo == 'Ganho')
@@ -389,10 +338,6 @@ class FinanceiroModel extends ChangeNotifier {
         .fold(0.0, (sum, t) => sum + t.valor);
   }
 
-  // ================================
-  // SALDOS
-  // ================================
-
   double saldoDoMesPrevisto(DateTime mes) {
     return totalGanhosDoMes(mes) - totalGastosDoMes(mes);
   }
@@ -403,24 +348,15 @@ class FinanceiroModel extends ChangeNotifier {
 
   double saldoAcumuladoDisponivel(DateTime mes) {
     return getTransacoesAteMes(mes).fold(0.0, (saldo, t) {
-      if (t.tipo == 'Ganho') {
-        return saldo + t.valor;
-      }
-
-      if (estaPago(t.id)) {
-        return saldo - t.valor;
-      }
-
+      if (t.tipo == 'Ganho') return saldo + t.valor;
+      if (estaPago(t.id)) return saldo - t.valor;
       return saldo;
     });
   }
 
   double saldoAcumuladoPrevisto(DateTime mes) {
     return getTransacoesAteMes(mes).fold(0.0, (saldo, t) {
-      if (t.tipo == 'Ganho') {
-        return saldo + t.valor;
-      }
-
+      if (t.tipo == 'Ganho') return saldo + t.valor;
       return saldo - t.valor;
     });
   }
@@ -429,18 +365,10 @@ class FinanceiroModel extends ChangeNotifier {
     return getPendenciasAteMes(mes).fold(0.0, (sum, t) => sum + t.valor);
   }
 
-  // Compatibilidade com nomes antigos usados pela UI atual.
   double saldoPrevisto(DateTime mes) => saldoDoMesPrevisto(mes);
-
   double saldoDisponivel(DateTime mes) => saldoDoMesDisponivel(mes);
-
   double saldoAteMes(DateTime mes) => saldoAcumuladoDisponivel(mes);
-
   double saldoDoMes(DateTime mes) => saldoDoMesPrevisto(mes);
-
-  // ================================
-  // PENDÊNCIAS
-  // ================================
 
   List<Transacao> getPendenciasAteMes(DateTime mes) {
     final pendencias = getTransacoesAteMes(mes).where((t) {
@@ -467,10 +395,6 @@ class FinanceiroModel extends ChangeNotifier {
     return pendencias.fold(0.0, (sum, t) => sum + t.valor);
   }
 
-  // ================================
-  // CATEGORIAS
-  // ================================
-
   bool categoriaJaExiste(String nome) {
     return categorias.any((c) => c.nome.toLowerCase() == nome.toLowerCase());
   }
@@ -478,36 +402,25 @@ class FinanceiroModel extends ChangeNotifier {
   String? adicionarCategoria(String nome) {
     final nomeLimpo = nome.trim();
 
-    if (nomeLimpo.isEmpty) {
-      return 'Digite um nome.';
-    }
+    if (nomeLimpo.isEmpty) return 'Digite um nome.';
+    if (nomeLimpo.length < 3) return 'Nome muito curto.';
+    if (categoriaJaExiste(nomeLimpo)) return 'Já existe.';
 
-    if (nomeLimpo.length < 3) {
-      return 'Nome muito curto.';
-    }
-
-    if (categoriaJaExiste(nomeLimpo)) {
-      return 'Já existe.';
-    }
-
-    final nova = Categoria(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      nome: nomeLimpo,
+    categorias.add(
+      Categoria(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        nome: nomeLimpo,
+      ),
     );
 
-    categorias.add(nova);
     _salvarDados();
     notifyListeners();
-
     return null;
   }
 
   void editarCategoria(String id, String novoNome) {
     final index = categorias.indexWhere((c) => c.id == id);
-
-    if (index == -1 || novoNome.isEmpty) {
-      return;
-    }
+    if (index == -1 || novoNome.isEmpty) return;
 
     categorias[index] = Categoria(id: categorias[index].id, nome: novoNome);
 
@@ -521,12 +434,10 @@ class FinanceiroModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ================================
-  // FILTROS / ORDENAÇÃO
-  // ================================
-
   List<Transacao> ordenarTransacoes(
-      List<Transacao> lista, Ordenacao ordenacao) {
+    List<Transacao> lista,
+    Ordenacao ordenacao,
+  ) {
     final copia = List<Transacao>.from(lista);
 
     switch (ordenacao) {
@@ -554,9 +465,7 @@ class FinanceiroModel extends ChangeNotifier {
   }
 
   List<Transacao> filtrarPorNome(List<Transacao> lista, String filtro) {
-    if (filtro.isEmpty) {
-      return lista;
-    }
+    if (filtro.isEmpty) return lista;
 
     return lista
         .where((t) => t.nome.toLowerCase().contains(filtro.toLowerCase()))

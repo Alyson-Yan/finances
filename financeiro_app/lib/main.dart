@@ -1,24 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'theme/app_theme.dart';
+
+import 'models/app_config_model.dart';
 import 'models/financeiro_model.dart';
+import 'routes/app_routes.dart';
+import 'screens/categoria_page.dart';
+import 'screens/configuracoes_page.dart';
 import 'screens/home_page.dart';
+import 'screens/lancamentos_page.dart';
+import 'screens/relatorio_anual_page.dart';
+import 'theme/app_theme.dart';
 
 void main() async {
-  // Garante a inicialização dos bindings do Flutter
   WidgetsFlutterBinding.ensureInitialized();
 
   final prefs = await SharedPreferences.getInstance();
-
-  // Como o seu Model agrupa tudo (transações, categorias, parcelas)
-  // em um único JSON, só precisamos buscar a chave 'financeiro'.
   final dadosSalvos = prefs.getString('financeiro');
 
   runApp(
-    ChangeNotifierProvider(
-      // Passamos os dados recuperados para o construtor do Model
-      create: (_) => FinanceiroModel(dadosSalvos),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => FinanceiroModel(dadosSalvos)),
+        ChangeNotifierProvider(create: (_) => AppConfigModel(prefs)),
+      ],
       child: const MyApp(),
     ),
   );
@@ -33,7 +38,14 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'Controle Financeiro',
       theme: AppTheme.darkTheme,
-      home: const HomePage(),
+      initialRoute: AppRoutes.inicio,
+      routes: {
+        AppRoutes.inicio: (_) => const HomePage(),
+        AppRoutes.lancamentos: (_) => const LancamentosPage(),
+        AppRoutes.relatorioAnual: (_) => const RelatorioAnualPage(),
+        AppRoutes.categorias: (_) => const CategoriasPage(),
+        AppRoutes.configuracoes: (_) => const ConfiguracoesPage(),
+      },
     );
   }
 }

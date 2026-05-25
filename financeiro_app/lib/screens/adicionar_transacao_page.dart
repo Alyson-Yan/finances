@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+
 import '../models/financeiro_model.dart';
 import '../models/parcelado.dart';
+import '../theme/app_theme.dart';
 
 class AdicionarTransacaoPage extends StatefulWidget {
   final dynamic transacao;
@@ -21,7 +23,7 @@ class _AdicionarTransacaoPageState extends State<AdicionarTransacaoPage> {
   final _descricaoController = TextEditingController();
   final _descricaoDetalhadaController = TextEditingController();
   final _valorController = TextEditingController();
-  final _parcelasController = TextEditingController(text: "1");
+  final _parcelasController = TextEditingController(text: '1');
 
   String? _categoriaSelecionada;
   String _tipoSelecionado = 'Gasto';
@@ -38,14 +40,24 @@ class _AdicionarTransacaoPageState extends State<AdicionarTransacaoPage> {
 
     if (widget.transacao != null) {
       final t = widget.transacao!;
+      final formatter = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
 
       _descricaoController.text = t.nome;
       _descricaoDetalhadaController.text = t.descricaoDetalhada;
-      _valorController.text = t.valor.toString();
+      _valorController.text = formatter.format(t.valor);
       _tipoSelecionado = t.tipo;
       _categoriaSelecionada = t.categoria;
       _dataSelecionada = t.data;
     }
+  }
+
+  @override
+  void dispose() {
+    _descricaoController.dispose();
+    _descricaoDetalhadaController.dispose();
+    _valorController.dispose();
+    _parcelasController.dispose();
+    super.dispose();
   }
 
   double _converterParaDouble(String valorFormatado) {
@@ -64,14 +76,12 @@ class _AdicionarTransacaoPageState extends State<AdicionarTransacaoPage> {
     final descricaoDetalhada = _descricaoDetalhadaController.text.trim();
     final parcelas = int.tryParse(_parcelasController.text) ?? 1;
     final valorInformado = _converterParaDouble(_valorController.text);
-
-    if (_categoriaSelecionada == null || _categoriaSelecionada!.isEmpty) {
-      _erro("Selecione uma categoria");
-      return;
-    }
+    final categoria = (_categoriaSelecionada == null || _categoriaSelecionada!.isEmpty)
+        ? 'Sem categoria'
+        : _categoriaSelecionada!;
 
     if (nome.isEmpty || valorInformado <= 0) {
-      _erro("Preencha corretamente");
+      _erro('Preencha nome e valor corretamente.');
       return;
     }
 
@@ -80,7 +90,6 @@ class _AdicionarTransacaoPageState extends State<AdicionarTransacaoPage> {
         : valorInformado;
 
     final model = context.read<FinanceiroModel>();
-
     final tipoEnum =
         _tipoSelecionado == 'Ganho' ? TipoTransacao.ganho : TipoTransacao.gasto;
 
@@ -91,7 +100,7 @@ class _AdicionarTransacaoPageState extends State<AdicionarTransacaoPage> {
           descricaoDetalhada: descricaoDetalhada,
           valor: valorTotal,
           tipo: _tipoSelecionado,
-          categoria: _categoriaSelecionada!,
+          categoria: categoria,
           dataInicio: _dataInicioFixo,
         );
       } else if (parcelas > 1) {
@@ -100,7 +109,7 @@ class _AdicionarTransacaoPageState extends State<AdicionarTransacaoPage> {
           descricaoDetalhada: descricaoDetalhada,
           valorTotal: valorTotal,
           tipo: tipoEnum,
-          categoria: _categoriaSelecionada!,
+          categoria: categoria,
           parcelas: parcelas,
           dataInicial: _dataSelecionada,
         );
@@ -110,7 +119,8 @@ class _AdicionarTransacaoPageState extends State<AdicionarTransacaoPage> {
           descricaoDetalhada,
           valorInformado,
           _tipoSelecionado,
-          _categoriaSelecionada!,
+          categoria,
+          data: _dataSelecionada,
         );
       }
     } else {
@@ -120,7 +130,7 @@ class _AdicionarTransacaoPageState extends State<AdicionarTransacaoPage> {
         descricaoDetalhada: descricaoDetalhada,
         valor: valorInformado,
         tipo: _tipoSelecionado,
-        categoria: _categoriaSelecionada!,
+        categoria: categoria,
         data: _dataSelecionada,
       );
     }
@@ -155,143 +165,222 @@ class _AdicionarTransacaoPageState extends State<AdicionarTransacaoPage> {
   Widget build(BuildContext context) {
     final model = context.watch<FinanceiroModel>();
     final parcelas = int.tryParse(_parcelasController.text) ?? 1;
-    final listaCategorias =
-        {"Sem categoria", ...model.categorias.map((c) => c.nome)}.toList();
+    final listaCategorias = {'Sem categoria', ...model.categorias.map((c) => c.nome)}.toList();
+    final categoriaAtual = listaCategorias.contains(_categoriaSelecionada)
+        ? _categoriaSelecionada
+        : 'Sem categoria';
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Nova Transação")),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            TextField(
-              controller: _descricaoController,
-              decoration: const InputDecoration(labelText: "Nome"),
+      resizeToAvoidBottomInset: true,
+      appBar: AppBar(
+        title: Text(widget.transacao == null ? 'Nova transação' : 'Editar transação'),
+      ),
+      body: SafeArea(
+        child: GestureDetector(
+          onTap: () => FocusScope.of(context).unfocus(),
+          child: ListView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            padding: EdgeInsets.fromLTRB(
+              16,
+              8,
+              16,
+              MediaQuery.of(context).viewInsets.bottom + 28,
             ),
-
-            const SizedBox(height: 10),
-
-            TextField(
-              controller: _descricaoDetalhadaController,
-              maxLines: 3,
-              decoration: const InputDecoration(labelText: "Descrição"),
-            ),
-
-            CheckboxListTile(
-              title: const Text("Fixo mensal"),
-              value: _isFixo,
-              onChanged: (v) => setState(() => _isFixo = v ?? false),
-            ),
-
-            if (parcelas > 1)
-              CheckboxListTile(
-                value: _usarValorDaParcela,
-                onChanged: (v) =>
-                    setState(() => _usarValorDaParcela = v ?? false),
-                title: const Text("Valor da parcela"),
-              ),
-
-            TextField(
-              controller: _valorController,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
-              inputFormatters: [
-                FilteringTextInputFormatter.digitsOnly,
-                _CurrencyInputFormatter(),
-              ],
-              decoration: InputDecoration(
-                labelText: (_usarValorDaParcela && parcelas > 1)
-                    ? "Valor da parcela"
-                    : "Valor total",
-              ),
-            ),
-
-            TextField(
-              controller: _parcelasController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: "Parcelas"),
-              onChanged: (_) => setState(() {}),
-            ),
-
-            DropdownButtonFormField<String>(
-              initialValue: _tipoSelecionado,
-              items: const [
-                DropdownMenuItem(value: "Ganho", child: Text("Ganho")),
-                DropdownMenuItem(value: "Gasto", child: Text("Gasto")),
-              ],
-              onChanged: (v) => setState(() => _tipoSelecionado = v!),
-              decoration: const InputDecoration(labelText: "Tipo"),
-            ),
-
-            DropdownButtonFormField<String>(
-              initialValue: listaCategorias.contains(_categoriaSelecionada)
-                  ? _categoriaSelecionada
-                  : "Sem categoria",
-              items: listaCategorias.map((c) {
-                return DropdownMenuItem(
-                  value: c,
-                  child: Text(c),
-                );
-              }).toList(),
-              onChanged: (v) => setState(() => _categoriaSelecionada = v),
-              decoration: const InputDecoration(labelText: "Categoria"),
-            ),
-
-            const SizedBox(height: 10),
-
-            // 📅 DATA NORMAL
-            Row(
-              children: [
-                Text(
-                    "Data: ${_dataSelecionada.day}/${_dataSelecionada.month}/${_dataSelecionada.year}"),
-                const Spacer(),
-                TextButton(
-                  onPressed: () => _selecionarData(false),
-                  child: const Text("Alterar"),
-                )
-              ],
-            ),
-
-            // 📅 DATA FIXO
-            if (_isFixo)
-              Row(
+            children: [
+              _buildSecao(
+                title: 'Informações principais',
                 children: [
-                  Text(
-                      "Início: ${_dataInicioFixo.day}/${_dataInicioFixo.month}/${_dataInicioFixo.year}"),
-                  const Spacer(),
-                  TextButton(
-                    onPressed: () => _selecionarData(true),
-                    child: const Text("Alterar"),
-                  )
+                  TextField(
+                    controller: _descricaoController,
+                    textInputAction: TextInputAction.next,
+                    decoration: const InputDecoration(
+                      labelText: 'Nome',
+                      prefixIcon: Icon(Icons.edit_outlined),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _descricaoDetalhadaController,
+                    maxLines: 3,
+                    textInputAction: TextInputAction.newline,
+                    decoration: const InputDecoration(
+                      labelText: 'Descrição',
+                      prefixIcon: Icon(Icons.notes_outlined),
+                    ),
+                  ),
                 ],
               ),
-
-            const Spacer(),
-
-            ElevatedButton(
-              onPressed: _salvar,
-              child: const Text("Salvar"),
-            ),
-          ],
+              const SizedBox(height: 14),
+              _buildSecao(
+                title: 'Valores e tipo',
+                children: [
+                  CheckboxListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Fixo mensal'),
+                    subtitle: const Text('Repete todo mês a partir da data escolhida.'),
+                    value: _isFixo,
+                    onChanged: (v) => setState(() => _isFixo = v ?? false),
+                  ),
+                  if (parcelas > 1)
+                    CheckboxListTile(
+                      contentPadding: EdgeInsets.zero,
+                      value: _usarValorDaParcela,
+                      onChanged: (v) => setState(() => _usarValorDaParcela = v ?? false),
+                      title: const Text('Valor informado é da parcela'),
+                    ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _valorController,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    textInputAction: TextInputAction.next,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                      _CurrencyInputFormatter(),
+                    ],
+                    decoration: InputDecoration(
+                      labelText: (_usarValorDaParcela && parcelas > 1)
+                          ? 'Valor da parcela'
+                          : 'Valor total',
+                      prefixIcon: const Icon(Icons.attach_money),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _parcelasController,
+                    keyboardType: TextInputType.number,
+                    textInputAction: TextInputAction.next,
+                    decoration: const InputDecoration(
+                      labelText: 'Parcelas',
+                      prefixIcon: Icon(Icons.format_list_numbered),
+                    ),
+                    onChanged: (_) => setState(() {}),
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    initialValue: _tipoSelecionado,
+                    items: const [
+                      DropdownMenuItem(value: 'Ganho', child: Text('Ganho')),
+                      DropdownMenuItem(value: 'Gasto', child: Text('Gasto')),
+                    ],
+                    onChanged: (v) => setState(() => _tipoSelecionado = v!),
+                    decoration: const InputDecoration(
+                      labelText: 'Tipo',
+                      prefixIcon: Icon(Icons.swap_vert),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    initialValue: categoriaAtual,
+                    items: listaCategorias.map((c) {
+                      return DropdownMenuItem(value: c, child: Text(c));
+                    }).toList(),
+                    onChanged: (v) => setState(() => _categoriaSelecionada = v),
+                    decoration: const InputDecoration(
+                      labelText: 'Categoria',
+                      prefixIcon: Icon(Icons.category_outlined),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              _buildSecao(
+                title: 'Datas',
+                children: [
+                  _buildLinhaData(
+                    label: 'Data',
+                    data: _dataSelecionada,
+                    onPressed: () => _selecionarData(false),
+                  ),
+                  if (_isFixo)
+                    _buildLinhaData(
+                      label: 'Início do fixo',
+                      data: _dataInicioFixo,
+                      onPressed: () => _selecionarData(true),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                height: 54,
+                child: ElevatedButton(
+                  onPressed: _salvar,
+                  child: const Text('Salvar'),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
+    );
+  }
+
+  Widget _buildSecao({
+    required String title,
+    required List<Widget> children,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 17,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 14),
+          ...children,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLinhaData({
+    required String label,
+    required DateTime data,
+    required VoidCallback onPressed,
+  }) {
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            '$label: ${data.day}/${data.month}/${data.year}',
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+        TextButton(
+          onPressed: onPressed,
+          child: const Text('Alterar'),
+        ),
+      ],
     );
   }
 }
 
 class _CurrencyInputFormatter extends TextInputFormatter {
-  final NumberFormat _formatter =
-      NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
+  final NumberFormat _formatter = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
 
   @override
   TextEditingValue formatEditUpdate(
-      TextEditingValue oldValue, TextEditingValue newValue) {
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
     if (newValue.text.isEmpty) return newValue;
 
     final digits = newValue.text.replaceAll(RegExp(r'[^\d]'), '');
-
     final number = double.parse(digits) / 100;
-
     final newText = _formatter.format(number);
 
     return TextEditingValue(
