@@ -141,9 +141,11 @@ class FinanceiroModel extends ChangeNotifier {
     final novo = Parcelado(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       descricao: nome,
+      descricaoDetalhada: descricaoDetalhada,
       valorTotal: valorTotal,
       totalParcelas: parcelas,
       tipo: tipo,
+      categoria: categoria,
       dataInicio: dataInicial,
     );
 
@@ -238,10 +240,10 @@ class FinanceiroModel extends ChangeNotifier {
             Transacao(
               id: 'parcelado_${p.id}_${parcela.numero}',
               nome: '${p.descricao} (${parcela.numero}/${p.totalParcelas})',
-              descricaoDetalhada: '',
+              descricaoDetalhada: p.descricaoDetalhada,
               valor: parcela.valor,
               tipo: p.tipo == TipoTransacao.ganho ? 'Ganho' : 'Gasto',
-              categoria: 'Sem categoria',
+              categoria: p.categoria,
               data: parcela.data,
             ),
           );
