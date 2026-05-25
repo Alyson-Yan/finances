@@ -122,6 +122,60 @@ class FinanceiroModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  void editarParcelado({
+    required String id,
+    required String nome,
+    required String descricaoDetalhada,
+    required double valorTotal,
+    required TipoTransacao tipo,
+    required String categoria,
+    required int parcelas,
+    required DateTime dataInicial,
+  }) {
+    final index = parcelados.indexWhere((p) => p.id == id);
+    if (index == -1) return;
+
+    parcelados[index] = Parcelado(
+      id: id,
+      descricao: nome,
+      descricaoDetalhada: descricaoDetalhada,
+      valorTotal: valorTotal,
+      totalParcelas: parcelas,
+      tipo: tipo,
+      categoria: categoria,
+      dataInicio: dataInicial,
+    );
+
+    _salvarDados();
+    notifyListeners();
+  }
+
+  void editarRecorrencia({
+    required String id,
+    required String nome,
+    required String descricaoDetalhada,
+    required double valor,
+    required String tipo,
+    required String categoria,
+    required DateTime dataInicio,
+  }) {
+    final index = recorrentes.indexWhere((r) => r.id == id);
+    if (index == -1) return;
+
+    recorrentes[index] = Recorrencia(
+      id: id,
+      descricao: nome,
+      descricaoDetalhada: descricaoDetalhada,
+      valor: valor,
+      tipo: tipo,
+      categoria: categoria,
+      dataInicio: dataInicio,
+    );
+
+    _salvarDados();
+    notifyListeners();
+  }
+
   void removerTransacao(String id) {
     transacoes.removeWhere((t) => t.id == id);
     pagamentos.remove(id);
@@ -172,6 +226,7 @@ class FinanceiroModel extends ChangeNotifier {
     final nova = Recorrencia(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       descricao: nome,
+      descricaoDetalhada: descricaoDetalhada,
       valor: valor,
       tipo: tipo,
       categoria: categoria,
@@ -262,7 +317,7 @@ class FinanceiroModel extends ChangeNotifier {
             id: 'fixo_${r.id}_${mesSelecionado.month}_${mesSelecionado.year}',
             nome:
                 '${r.descricao} (${mesSelecionado.month}/${mesSelecionado.year})',
-            descricaoDetalhada: '',
+            descricaoDetalhada: r.descricaoDetalhada,
             valor: r.valor,
             tipo: r.tipo,
             categoria: r.categoria,
