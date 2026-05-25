@@ -38,55 +38,56 @@ class _HomePageState extends State<HomePage> {
     final model = context.watch<FinanceiroModel>();
     final config = context.watch<AppConfigModel>();
 
+    final transacoes = model.getTransacoesDoMes(mesSelecionado);
     final ganhos = model.totalGanhosDoMes(mesSelecionado);
     final gastos = model.totalGastosDoMes(mesSelecionado);
+    final saldo = model.saldoDoMesPrevisto(mesSelecionado);
     final pago = model.totalPagoDoMes(mesSelecionado);
     final pendenteMes = model.totalPendenteDoMes(mesSelecionado);
-    final pendenteTotal = model.totalPendenteAteMes(mesSelecionado);
-    final saldoDisponivel = model.saldoAcumuladoDisponivel(mesSelecionado);
-    final saldoPrevisto = model.saldoAcumuladoPrevisto(mesSelecionado);
-    final saldoDoMes = model.saldoDoMesPrevisto(mesSelecionado);
+    final pendenteAteMes = model.totalPendenteAteMes(mesSelecionado);
     final pendencias = model.getPendenciasAteMes(mesSelecionado);
-    final categorias = _gastosPorCategoria(model.getTransacoesDoMes(mesSelecionado));
+    final gastosPorCategoria = _gastosPorCategoria(transacoes);
+
+    final ultimos = model.ordenarTransacoes(
+      transacoes,
+      Ordenacao.dataMaisRecente,
+    ).take(5).toList();
 
     return Scaffold(
       drawer: const AppDrawer(selectedItem: AppDrawerItem.inicio),
       appBar: AppBar(
         title: const Text('Início'),
+        centerTitle: false,
       ),
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 110),
           children: [
-            _buildHeader(config),
+            _buildBoasVindas(config),
             const SizedBox(height: 14),
             _buildSeletorMes(),
             const SizedBox(height: 14),
-            _buildHeroSaldo(
-              saldoDisponivel: saldoDisponivel,
-              saldoPrevisto: saldoPrevisto,
-              saldoDoMes: saldoDoMes,
-            ),
-            const SizedBox(height: 14),
-            _buildGridIndicadores(
+            _buildResumoPlanilha(
               ganhos: ganhos,
               gastos: gastos,
+              saldo: saldo,
               pago: pago,
               pendenteMes: pendenteMes,
             ),
             const SizedBox(height: 14),
-            _buildSaudeFinanceira(
-              saldoDisponivel: saldoDisponivel,
-              pendenteTotal: pendenteTotal,
-            ),
-            if (pendencias.isNotEmpty) ...[
-              const SizedBox(height: 14),
-              _buildPendenciasCard(pendencias, pendenteTotal),
-            ],
+            _buildStatusDoMes(saldo, pendenteAteMes),
             const SizedBox(height: 14),
-            _buildCategoriaPreview(categorias),
+            _buildAcoesRapidas(context),
             const SizedBox(height: 14),
-            _buildAtalhos(),
+            if (pendencias.isNotEmpty)
+              _buildPendenciasCard(
+                total: pendenteAteMes,
+                quantidade: pendencias.length,
+              ),
+            if (pendencias.isNotEmpty) const SizedBox(height: 14),
+            _buildCategoriasResumo(gastosPorCategoria),
+            const SizedBox(height: 14),
+            _buildUltimosLancamentos(ultimos),
           ],
         ),
       ),
@@ -94,9 +95,7 @@ class _HomePageState extends State<HomePage> {
         onPressed: () {
           Navigator.push(
             context,
-            MaterialPageRoute(
-              builder: (_) => const AdicionarTransacaoPage(),
-            ),
+            MaterialPageRoute(builder: (_) => const AdicionarTransacaoPage()),
           );
         },
         child: const Icon(Icons.add),
@@ -104,7 +103,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildHeader(AppConfigModel config) {
+  Widget _buildBoasVindas(AppConfigModel config) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -119,7 +118,7 @@ class _HomePageState extends State<HomePage> {
         ),
         const SizedBox(height: 4),
         const Text(
-          'Veja o estado do seu mês em poucos segundos.',
+          'Resumo direto do seu mês financeiro.',
           style: TextStyle(
             color: AppColors.textSecondary,
             fontSize: 14,
@@ -132,7 +131,7 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildSeletorMes() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(22),
@@ -150,7 +149,7 @@ class _HomePageState extends State<HomePage> {
               textAlign: TextAlign.center,
               style: const TextStyle(
                 color: AppColors.textPrimary,
-                fontSize: 17,
+                fontSize: 18,
                 fontWeight: FontWeight.w900,
               ),
             ),
@@ -164,79 +163,143 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildHeroSaldo({
-    required double saldoDisponivel,
-    required double saldoPrevisto,
-    required double saldoDoMes,
+  Widget _buildResumoPlanilha({
+    required double ganhos,
+    required double gastos,
+    required double saldo,
+    required double pago,
+    required double pendenteMes,
   }) {
-    final positivo = saldoDisponivel >= 0;
+    final saldoPositivo = saldo >= 0;
+    final corSaldo = saldoPositivo ? AppColors.success : AppColors.danger;
 
     return Container(
-      padding: const EdgeInsets.all(22),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(30),
+        borderRadius: BorderRadius.circular(28),
         border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Saldo final estimado',
+            style: TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            formatarMoeda(saldo),
+            style: TextStyle(
+              color: corSaldo,
+              fontSize: 34,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -1.2,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            saldoPositivo
+                ? 'Você está fechando o mês no positivo.'
+                : 'Os gastos passaram dos ganhos neste mês.',
+            style: const TextStyle(
+              color: AppColors.textMuted,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 18),
+          Row(
+            children: [
+              Expanded(
+                child: _buildMetricaCompacta(
+                  titulo: 'Ganhos',
+                  valor: ganhos,
+                  cor: AppColors.success,
+                  icon: Icons.arrow_upward_rounded,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _buildMetricaCompacta(
+                  titulo: 'Gastos',
+                  valor: gastos,
+                  cor: AppColors.danger,
+                  icon: Icons.arrow_downward_rounded,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: _buildMetricaCompacta(
+                  titulo: 'Pago',
+                  valor: pago,
+                  cor: AppColors.primaryBlue,
+                  icon: Icons.check_circle_outline,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _buildMetricaCompacta(
+                  titulo: 'Em aberto',
+                  valor: pendenteMes,
+                  cor: AppColors.warning,
+                  icon: Icons.pending_actions_outlined,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMetricaCompacta({
+    required String titulo,
+    required double valor,
+    required Color cor,
+    required IconData icon,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceSoft,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.borderSoft),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: AppColors.primaryBlue.withValues(alpha: 0.16),
-                  borderRadius: BorderRadius.circular(16),
+              Icon(icon, color: cor, size: 16),
+              const SizedBox(width: 6),
+              Text(
+                titulo,
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
                 ),
-                child: const Icon(
-                  Icons.account_balance_wallet_outlined,
-                  color: AppColors.accentBlue,
-                ),
-              ),
-              const Spacer(),
-              _buildStatusPill(
-                texto: positivo ? 'positivo' : 'atenção',
-                cor: positivo ? AppColors.success : AppColors.warning,
               ),
             ],
           ),
-          const SizedBox(height: 18),
-          const Text(
-            'Saldo disponível',
+          const SizedBox(height: 8),
+          Text(
+            formatarMoeda(valor),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              color: AppColors.textSecondary,
+              color: cor,
               fontSize: 14,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            formatarMoeda(saldoDisponivel),
-            style: TextStyle(
-              color: positivo ? AppColors.textPrimary : AppColors.warning,
-              fontSize: 34,
               fontWeight: FontWeight.w900,
-              letterSpacing: -1.2,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'Resultado acumulado previsto: ${formatarMoeda(saldoPrevisto)}',
-            style: TextStyle(
-              color: saldoPrevisto >= 0 ? AppColors.success : AppColors.danger,
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Resultado do mês: ${formatarMoeda(saldoDoMes)}',
-            style: TextStyle(
-              color: saldoDoMes >= 0 ? AppColors.success : AppColors.danger,
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
             ),
           ),
         ],
@@ -244,67 +307,32 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildGridIndicadores({
-    required double ganhos,
-    required double gastos,
-    required double pago,
-    required double pendenteMes,
-  }) {
-    return Column(
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: _buildIndicador(
-                titulo: 'Entradas',
-                valor: ganhos,
-                icon: Icons.trending_up,
-                cor: AppColors.success,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _buildIndicador(
-                titulo: 'Saídas',
-                valor: gastos,
-                icon: Icons.trending_down,
-                cor: AppColors.danger,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        Row(
-          children: [
-            Expanded(
-              child: _buildIndicador(
-                titulo: 'Pago',
-                valor: pago,
-                icon: Icons.check_circle_outline,
-                cor: AppColors.accentBlue,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _buildIndicador(
-                titulo: 'Em aberto',
-                valor: pendenteMes,
-                icon: Icons.warning_amber_rounded,
-                cor: AppColors.warning,
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
+  Widget _buildStatusDoMes(double saldo, double pendenteAteMes) {
+    final saldoNegativo = saldo < 0;
+    final temPendencia = pendenteAteMes > 0;
 
-  Widget _buildIndicador({
-    required String titulo,
-    required double valor,
-    required IconData icon,
-    required Color cor,
-  }) {
+    final icon = saldoNegativo || temPendencia
+        ? Icons.warning_amber_rounded
+        : Icons.verified_outlined;
+
+    final cor = saldoNegativo
+        ? AppColors.danger
+        : temPendencia
+            ? AppColors.warning
+            : AppColors.success;
+
+    final titulo = saldoNegativo
+        ? 'Atenção no fechamento'
+        : temPendencia
+            ? 'Existem contas em aberto'
+            : 'Mês controlado';
+
+    final mensagem = saldoNegativo
+        ? 'Faltam ${formatarMoeda(saldo.abs())} para o mês ficar zerado.'
+        : temPendencia
+            ? 'Há ${formatarMoeda(pendenteAteMes)} em pendências até este mês.'
+            : 'Ganhos, gastos e pendências estão sob controle.';
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -312,311 +340,33 @@ class _HomePageState extends State<HomePage> {
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: AppColors.border),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: cor, size: 22),
-          const SizedBox(height: 12),
-          Text(
-            titulo,
-            style: const TextStyle(
-              color: AppColors.textSecondary,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 5),
-          Text(
-            formatarMoeda(valor),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: cor,
-              fontSize: 15,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSaudeFinanceira({
-    required double saldoDisponivel,
-    required double pendenteTotal,
-  }) {
-    final semPendencia = pendenteTotal <= 0;
-    final cobrePendencias = saldoDisponivel >= pendenteTotal;
-    final seguro = semPendencia || cobrePendencias;
-
-    final mensagem = semPendencia
-        ? 'Sem contas em aberto até este mês.'
-        : cobrePendencias
-            ? 'Seu dinheiro disponível cobre as contas em aberto.'
-            : 'As contas abertas passam do dinheiro disponível.';
-
-    return _buildInfoCard(
-      icon: seguro ? Icons.verified_outlined : Icons.error_outline,
-      iconColor: seguro ? AppColors.success : AppColors.warning,
-      title: 'Saúde financeira',
-      subtitle: mensagem,
-    );
-  }
-
-  Widget _buildPendenciasCard(List<Transacao> pendencias, double pendenteTotal) {
-    final principais = pendencias.take(3).toList();
-
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(26),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.warning_amber_rounded, color: AppColors.warning),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  '${pendencias.length} pendência(s) aberta(s)',
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ),
-              Text(
-                formatarMoeda(pendenteTotal),
-                style: const TextStyle(
-                  color: AppColors.warning,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          ...principais.map(
-            (t) => Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      t.nome,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AppColors.textSecondary,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                  Text(
-                    formatarMoeda(t.valor),
-                    style: const TextStyle(
-                      color: AppColors.textPrimary,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          SizedBox(
-            width: double.infinity,
-            child: TextButton.icon(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => PendenciasPage(mesSelecionado: mesSelecionado),
-                  ),
-                );
-              },
-              icon: const Icon(Icons.open_in_new),
-              label: const Text('Ver pendências'),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCategoriaPreview(Map<String, double> categorias) {
-    if (categorias.isEmpty) {
-      return _buildInfoCard(
-        icon: Icons.category_outlined,
-        iconColor: AppColors.textMuted,
-        title: 'Categorias do mês',
-        subtitle: 'Nenhum gasto categorizado neste mês.',
-      );
-    }
-
-    final principais = categorias.entries.take(3).toList();
-
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(26),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Maiores gastos do mês',
-            style: TextStyle(
-              color: AppColors.textPrimary,
-              fontSize: 17,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 14),
-          ...principais.map(
-            (e) => Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      e.key,
-                      style: const TextStyle(
-                        color: AppColors.textSecondary,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                  Text(
-                    formatarMoeda(e.value),
-                    style: const TextStyle(
-                      color: AppColors.danger,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          SizedBox(
-            width: double.infinity,
-            child: TextButton.icon(
-              onPressed: () {
-                Navigator.pushReplacementNamed(context, AppRoutes.relatorioAnual);
-              },
-              icon: const Icon(Icons.insights_outlined),
-              label: const Text('Abrir relatório completo'),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAtalhos() {
-    return Row(
-      children: [
-        Expanded(
-          child: _buildAtalho(
-            icon: Icons.receipt_long_outlined,
-            title: 'Lançamentos',
-            subtitle: 'Ver lista completa',
-            route: AppRoutes.lancamentos,
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _buildAtalho(
-            icon: Icons.insights_outlined,
-            title: 'Relatórios',
-            subtitle: 'Analisar gastos',
-            route: AppRoutes.relatorioAnual,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildAtalho({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required String route,
-  }) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(24),
-      onTap: () => Navigator.pushReplacementNamed(context, route),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, color: AppColors.accentBlue),
-            const SizedBox(height: 12),
-            Text(
-              title,
-              style: const TextStyle(
-                color: AppColors.textPrimary,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              subtitle,
-              style: const TextStyle(
-                color: AppColors.textMuted,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildInfoCard({
-    required IconData icon,
-    required Color iconColor,
-    required String title,
-    required String subtitle,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(26),
-        border: Border.all(color: AppColors.border),
-      ),
       child: Row(
         children: [
-          Icon(icon, color: iconColor),
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: cor.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Icon(icon, color: cor),
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  title,
+                  titulo,
                   style: const TextStyle(
                     color: AppColors.textPrimary,
+                    fontSize: 15,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  subtitle,
+                  mensagem,
                   style: const TextStyle(
                     color: AppColors.textSecondary,
                     fontSize: 13,
@@ -631,25 +381,320 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildStatusPill({
-    required String texto,
-    required Color cor,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: cor.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: cor.withValues(alpha: 0.4)),
-      ),
-      child: Text(
-        texto.toUpperCase(),
-        style: TextStyle(
-          color: cor,
-          fontSize: 10,
-          fontWeight: FontWeight.w900,
-          letterSpacing: 0.8,
+  Widget _buildAcoesRapidas(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: _buildAcaoRapida(
+            titulo: 'Lançamentos',
+            subtitulo: 'Ver lista completa',
+            icon: Icons.receipt_long_outlined,
+            onTap: () => Navigator.pushNamed(context, AppRoutes.lancamentos),
+          ),
         ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _buildAcaoRapida(
+            titulo: 'Relatórios',
+            subtitulo: 'Analisar gastos',
+            icon: Icons.insights_outlined,
+            onTap: () => Navigator.pushNamed(context, AppRoutes.relatorioAnual),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAcaoRapida({
+    required String titulo,
+    required String subtitulo,
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(24),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, color: AppColors.accentBlue),
+            const SizedBox(height: 12),
+            Text(
+              titulo,
+              style: const TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 15,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              subtitulo,
+              style: const TextStyle(
+                color: AppColors.textMuted,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPendenciasCard({
+    required double total,
+    required int quantidade,
+  }) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(24),
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => PendenciasPage(mesSelecionado: mesSelecionado),
+          ),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: AppColors.warning.withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: const Icon(
+                Icons.warning_amber_rounded,
+                color: AppColors.warning,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '$quantidade pendência(s) abertas',
+                    style: const TextStyle(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Total em aberto: ${formatarMoeda(total)}',
+                    style: const TextStyle(
+                      color: AppColors.warning,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right, color: AppColors.textMuted),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCategoriasResumo(Map<String, double> categorias) {
+    if (categorias.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final principais = categorias.entries.take(3).toList();
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Maiores gastos do mês',
+            style: TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 12),
+          ...principais.map((entry) {
+            final maior = principais.first.value;
+            final percentual = maior <= 0 ? 0.0 : entry.value / maior;
+
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          entry.key,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: AppColors.textSecondary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        formatarMoeda(entry.value),
+                        style: const TextStyle(
+                          color: AppColors.danger,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 7),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(999),
+                    child: LinearProgressIndicator(
+                      value: percentual,
+                      minHeight: 8,
+                      backgroundColor: AppColors.surfaceSoft,
+                      valueColor: const AlwaysStoppedAnimation<Color>(
+                        AppColors.danger,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUltimosLancamentos(List<Transacao> transacoes) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Últimos lançamentos',
+                  style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pushNamed(context, AppRoutes.lancamentos),
+                child: const Text('Ver todos'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          if (transacoes.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 18),
+              child: Center(
+                child: Text(
+                  'Nenhum lançamento neste mês.',
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            )
+          else
+            ...transacoes.map(_buildLancamentoCompacto),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLancamentoCompacto(Transacao t) {
+    final isGasto = t.tipo == 'Gasto';
+    final cor = isGasto ? AppColors.danger : AppColors.success;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        children: [
+          Container(
+            width: 8,
+            height: 38,
+            decoration: BoxDecoration(
+              color: cor,
+              borderRadius: BorderRadius.circular(999),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  t.nome,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  '${t.tipo} · ${t.categoria}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Text(
+            formatarMoeda(t.valor),
+            style: TextStyle(
+              color: cor,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
       ),
     );
   }
