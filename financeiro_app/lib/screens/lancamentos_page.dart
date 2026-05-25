@@ -482,7 +482,6 @@ class _LancamentosPageState extends State<LancamentosPage> {
 
   Widget _buildTransacaoCard(FinanceiroModel model, Transacao t) {
     final pago = model.estaPago(t.id);
-    final podeEditar = !t.id.startsWith('parcelado_') && !t.id.startsWith('fixo_');
     final isGasto = t.tipo == 'Gasto';
     final cor = isGasto ? AppColors.danger : AppColors.success;
     final parcelamento = _parcelamentoInfo(t);
@@ -581,27 +580,25 @@ class _LancamentosPageState extends State<LancamentosPage> {
                         value: pago,
                         onChanged: (_) => model.marcarComoPago(t.id),
                       ),
-                    if (!t.isAutomatica)
-                      PopupMenuButton<String>(
-                        onSelected: (value) {
-                          if (value == 'editar' && podeEditar) {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => AdicionarTransacaoPage(transacao: t),
-                              ),
-                            );
-                            return;
-                          }
+                    PopupMenuButton<String>(
+                      onSelected: (value) {
+                        if (value == 'editar') {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => AdicionarTransacaoPage(transacao: t),
+                            ),
+                          );
+                          return;
+                        }
 
-                          if (value == 'excluir') _confirmarExclusao(model, t);
-                        },
-                        itemBuilder: (_) => [
-                          if (podeEditar)
-                            const PopupMenuItem(value: 'editar', child: Text('Editar')),
-                          const PopupMenuItem(value: 'excluir', child: Text('Excluir')),
-                        ],
-                      ),
+                        if (value == 'excluir') _confirmarExclusao(model, t);
+                      },
+                      itemBuilder: (_) => const [
+                        PopupMenuItem(value: 'editar', child: Text('Editar')),
+                        PopupMenuItem(value: 'excluir', child: Text('Excluir')),
+                      ],
+                    ),
                   ],
                 ),
               ),
