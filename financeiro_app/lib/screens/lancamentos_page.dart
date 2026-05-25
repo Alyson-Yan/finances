@@ -8,7 +8,7 @@ import '../utils/formatadores.dart';
 import '../widgets/app_drawer.dart';
 import 'adicionar_transacao_page.dart';
 
-enum FiltroLancamentos { todos, abertos, pagos, ganhos, gastos }
+enum FiltroLancamentos { todos, abertos, pagos, ganhos, gastos, parcelados }
 
 class LancamentosPage extends StatefulWidget {
   const LancamentosPage({super.key});
@@ -54,7 +54,10 @@ class _LancamentosPageState extends State<LancamentosPage> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Excluir', style: TextStyle(color: AppColors.danger)),
+            child: const Text(
+              'Excluir',
+              style: TextStyle(color: AppColors.danger),
+            ),
           ),
         ],
       ),
@@ -65,24 +68,24 @@ class _LancamentosPageState extends State<LancamentosPage> {
     }
   }
 
-  void _mostrarDetalhes(Transacao t) {
+  void _mostrarDetalhes(FinanceiroModel model, Transacao t) {
+    final pago = model.estaPago(t.id);
+
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Detalhes da transação'),
+        title: Text(t.nome),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Nome: ${t.nome}'),
-            const SizedBox(height: 8),
-            Text('Tipo: ${t.tipo}'),
-            const SizedBox(height: 8),
-            Text('Categoria: ${t.categoria}'),
-            const SizedBox(height: 8),
-            Text('Valor: ${formatarMoeda(t.valor)}'),
-            const SizedBox(height: 8),
-            Text('Data: ${mesAnoCurto(t.data)}'),
+            _buildDetalheLinha('Tipo', t.tipo),
+            _buildDetalheLinha('Categoria', t.categoria),
+            _buildDetalheLinha('Valor', formatarMoeda(t.valor)),
+            _buildDetalheLinha('Data', mesAnoCurto(t.data)),
+            _buildDetalheLinha('Parcelamento', _parcelamentoInfo(t)),
+            if (t.tipo == 'Gasto')
+              _buildDetalheLinha('Status', pago ? 'Pago' : 'Em aberto'),
             const SizedBox(height: 12),
             const Text(
               'Descrição detalhada:',
@@ -102,23 +105,48 @@ class _LancamentosPageState extends State<LancamentosPage> {
     );
   }
 
+  Widget _buildDetalheLinha(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 115,
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: const TextStyle(fontWeight: FontWeight.w800),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   List<Transacao> _aplicarFiltroStatus(
     FinanceiroModel model,
     List<Transacao> transacoes,
   ) {
     switch (filtroSelecionado) {
       case FiltroLancamentos.abertos:
-        return transacoes
-            .where((t) => t.tipo == 'Gasto' && !model.estaPago(t.id))
-            .toList();
+        return transacoes.where((t) => t.tipo == 'Gasto' && !model.estaPago(t.id)).toList();
       case FiltroLancamentos.pagos:
-        return transacoes
-            .where((t) => t.tipo == 'Gasto' && model.estaPago(t.id))
-            .toList();
+        return transacoes.where((t) => t.tipo == 'Gasto' && model.estaPago(t.id)).toList();
       case FiltroLancamentos.ganhos:
         return transacoes.where((t) => t.tipo == 'Ganho').toList();
       case FiltroLancamentos.gastos:
         return transacoes.where((t) => t.tipo == 'Gasto').toList();
+      case FiltroLancamentos.parcelados:
+        return transacoes.where((t) => t.id.startsWith('parcelado_')).toList();
       case FiltroLancamentos.todos:
         return transacoes;
     }
@@ -128,10 +156,20 @@ class _LancamentosPageState extends State<LancamentosPage> {
   Widget build(BuildContext context) {
     final model = context.watch<FinanceiroModel>();
 
-    List<Transacao> transacoes = model.getTransacoesDoMes(mesSelecionado);
-    transacoes = _aplicarFiltroStatus(model, transacoes);
+    final transacoesDoMes = model.getTransacoesDoMes(mesSelecionado);
+    List<Transacao> transacoes = _aplicarFiltroStatus(model, transacoesDoMes);
     transacoes = model.filtrarPorNome(transacoes, filtroNome);
     transacoes = model.ordenarTransacoes(transacoes, ordenacaoSelecionada);
+
+    final ganhos = model.totalGanhosDoMes(mesSelecionado);
+    final gastos = model.totalGastosDoMes(mesSelecionado);
+    final saldo = model.saldoDoMesPrevisto(mesSelecionado);
+    final abertas = transacoesDoMes
+        .where((t) => t.tipo == 'Gasto' && !model.estaPago(t.id))
+        .length;
+    final parceladas = transacoesDoMes
+        .where((t) => t.id.startsWith('parcelado_'))
+        .length;
 
     return Scaffold(
       drawer: const AppDrawer(selectedItem: AppDrawerItem.lancamentos),
@@ -143,12 +181,19 @@ class _LancamentosPageState extends State<LancamentosPage> {
             16,
             8,
             16,
-            MediaQuery.of(context).viewInsets.bottom + 100,
+            MediaQuery.of(context).viewInsets.bottom + 120,
           ),
           children: [
             _buildSeletorMes(),
             const SizedBox(height: 14),
-            _buildResumoLista(model),
+            _buildResumoPlanilha(
+              ganhos: ganhos,
+              gastos: gastos,
+              saldo: saldo,
+              totalLancamentos: transacoesDoMes.length,
+              abertas: abertas,
+              parceladas: parceladas,
+            ),
             const SizedBox(height: 14),
             _buildBusca(),
             const SizedBox(height: 12),
@@ -205,50 +250,108 @@ class _LancamentosPageState extends State<LancamentosPage> {
     );
   }
 
-  Widget _buildResumoLista(FinanceiroModel model) {
-    final total = model.getTransacoesDoMes(mesSelecionado).length;
-    final abertas = model
-        .getTransacoesDoMes(mesSelecionado)
-        .where((t) => t.tipo == 'Gasto' && !model.estaPago(t.id))
-        .length;
+  Widget _buildResumoPlanilha({
+    required double ganhos,
+    required double gastos,
+    required double saldo,
+    required int totalLancamentos,
+    required int abertas,
+    required int parceladas,
+  }) {
+    final corSaldo = saldo >= 0 ? AppColors.success : AppColors.danger;
 
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(26),
         border: Border.all(color: AppColors.border),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.receipt_long_outlined, color: AppColors.accentBlue),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          const Text(
+            'Resumo do mês',
+            style: TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 14),
+          _buildLinhaResumo('Total de ganhos', ganhos, AppColors.success),
+          _buildLinhaResumo('Total de gastos', gastos, AppColors.danger),
+          _buildLinhaResumo('Saldo final estimado', saldo, corSaldo),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceSoft,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: AppColors.borderSoft),
+            ),
+            child: Row(
               children: [
-                Text(
-                  '$total lançamento(s) no mês',
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '$abertas gasto(s) ainda em aberto',
-                  style: const TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+                Expanded(child: _buildContador('Itens', totalLancamentos.toString())),
+                Expanded(child: _buildContador('Abertos', abertas.toString())),
+                Expanded(child: _buildContador('Parcelados', parceladas.toString())),
               ],
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildLinhaResumo(String label, double valor, Color cor) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 9),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          Text(
+            formatarMoeda(valor),
+            style: TextStyle(
+              color: cor,
+              fontSize: 15,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildContador(String label, String valor) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          valor,
+          style: const TextStyle(
+            color: AppColors.textPrimary,
+            fontSize: 18,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          label,
+          style: const TextStyle(
+            color: AppColors.textMuted,
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
     );
   }
 
@@ -272,6 +375,7 @@ class _LancamentosPageState extends State<LancamentosPage> {
           _buildFiltroChip('Pagos', FiltroLancamentos.pagos),
           _buildFiltroChip('Ganhos', FiltroLancamentos.ganhos),
           _buildFiltroChip('Gastos', FiltroLancamentos.gastos),
+          _buildFiltroChip('Parcelados', FiltroLancamentos.parcelados),
         ],
       ),
     );
@@ -294,9 +398,7 @@ class _LancamentosPageState extends State<LancamentosPage> {
           color: selecionado ? AppColors.textPrimary : AppColors.textSecondary,
           fontWeight: FontWeight.w800,
         ),
-        onSelected: (_) {
-          setState(() => filtroSelecionado = filtro);
-        },
+        onSelected: (_) => setState(() => filtroSelecionado = filtro),
       ),
     );
   }
@@ -383,12 +485,13 @@ class _LancamentosPageState extends State<LancamentosPage> {
     final podeEditar = !t.id.startsWith('parcelado_') && !t.id.startsWith('fixo_');
     final isGasto = t.tipo == 'Gasto';
     final cor = isGasto ? AppColors.danger : AppColors.success;
+    final parcelamento = _parcelamentoInfo(t);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: InkWell(
         borderRadius: BorderRadius.circular(22),
-        onTap: () => _mostrarDetalhes(t),
+        onTap: () => _mostrarDetalhes(model, t),
         child: Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
@@ -396,96 +499,111 @@ class _LancamentosPageState extends State<LancamentosPage> {
             borderRadius: BorderRadius.circular(22),
             border: Border.all(color: AppColors.border),
           ),
-          child: Row(
+          child: Column(
             children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: cor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Icon(
-                  t.isAutomatica
-                      ? Icons.autorenew
-                      : (isGasto ? Icons.trending_down : Icons.trending_up),
-                  color: cor,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      t.nome,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: pago ? AppColors.textMuted : AppColors.textPrimary,
-                        fontWeight: FontWeight.w900,
-                        decoration: pago ? TextDecoration.lineThrough : null,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      _subtituloTransacao(t, pago),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 10),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    formatarMoeda(t.valor),
-                    style: TextStyle(
+                  Container(
+                    width: 10,
+                    height: 54,
+                    decoration: BoxDecoration(
                       color: cor,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w900,
-                      decoration: pago ? TextDecoration.lineThrough : null,
+                      borderRadius: BorderRadius.circular(999),
                     ),
                   ),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          t.nome,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: pago ? AppColors.textMuted : AppColors.textPrimary,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w900,
+                            decoration: pago ? TextDecoration.lineThrough : null,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${t.tipo} · ${t.categoria}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      if (isGasto && !t.isAutomatica)
-                        Checkbox(
-                          value: pago,
-                          onChanged: (_) => model.marcarComoPago(t.id),
+                      Text(
+                        formatarMoeda(t.valor),
+                        style: TextStyle(
+                          color: cor,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w900,
+                          decoration: pago ? TextDecoration.lineThrough : null,
                         ),
-                      if (!t.isAutomatica)
-                        PopupMenuButton<String>(
-                          onSelected: (value) {
-                            if (value == 'editar' && podeEditar) {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => AdicionarTransacaoPage(transacao: t),
-                                ),
-                              );
-                              return;
-                            }
-
-                            if (value == 'excluir') _confirmarExclusao(model, t);
-                          },
-                          itemBuilder: (_) => [
-                            if (podeEditar)
-                              const PopupMenuItem(value: 'editar', child: Text('Editar')),
-                            const PopupMenuItem(value: 'excluir', child: Text('Excluir')),
-                          ],
-                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      _buildStatusPill(
+                        text: isGasto ? (pago ? 'Pago' : 'Aberto') : 'Entrada',
+                        color: isGasto ? (pago ? AppColors.success : AppColors.warning) : AppColors.success,
+                      ),
                     ],
                   ),
                 ],
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceSoft,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.borderSoft),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(child: _buildMiniCampo('Classificação', t.categoria)),
+                    Expanded(child: _buildMiniCampo('Parcelado', parcelamento)),
+                    if (isGasto && !t.isAutomatica)
+                      Checkbox(
+                        value: pago,
+                        onChanged: (_) => model.marcarComoPago(t.id),
+                      ),
+                    if (!t.isAutomatica)
+                      PopupMenuButton<String>(
+                        onSelected: (value) {
+                          if (value == 'editar' && podeEditar) {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => AdicionarTransacaoPage(transacao: t),
+                              ),
+                            );
+                            return;
+                          }
+
+                          if (value == 'excluir') _confirmarExclusao(model, t);
+                        },
+                        itemBuilder: (_) => [
+                          if (podeEditar)
+                            const PopupMenuItem(value: 'editar', child: Text('Editar')),
+                          const PopupMenuItem(value: 'excluir', child: Text('Excluir')),
+                        ],
+                      ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -494,11 +612,63 @@ class _LancamentosPageState extends State<LancamentosPage> {
     );
   }
 
-  String _subtituloTransacao(Transacao t, bool pago) {
-    if (t.tipo == 'Gasto') {
-      return '${t.categoria} · ${pago ? 'pago' : 'em aberto'}';
-    }
+  Widget _buildMiniCampo(String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            color: AppColors.textMuted,
+            fontSize: 10,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          value,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            color: AppColors.textPrimary,
+            fontSize: 12,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ],
+    );
+  }
 
-    return t.isAutomatica ? 'Automático' : t.categoria;
+  Widget _buildStatusPill({required String text, required Color color}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.35)),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: color,
+          fontSize: 10,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+
+  String _parcelamentoInfo(Transacao t) {
+    if (t.id.startsWith('fixo_')) return 'Fixo mensal';
+    if (!t.id.startsWith('parcelado_')) return 'Não';
+
+    final inicio = t.nome.lastIndexOf('(');
+    final fim = t.nome.lastIndexOf(')');
+
+    if (inicio == -1 || fim == -1 || fim <= inicio) return 'Sim';
+
+    return t.nome.substring(inicio + 1, fim);
   }
 }
