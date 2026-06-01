@@ -35,18 +35,21 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final appRoutes = <String, WidgetBuilder>{
+      AppRoutes.inicio: (_) => const HomePage(),
+      AppRoutes.lancamentos: (_) => const LancamentosPage(),
+      '/planilha': (_) => const PlanilhaPage(),
+      AppRoutes.relatorioAnual: (_) => const RelatorioAnualPage(),
+      AppRoutes.categorias: (_) => const CategoriasPage(),
+      AppRoutes.configuracoes: (_) => const ConfiguracoesPage(),
+    };
+
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Controle Financeiro',
       theme: AppTheme.darkTheme,
       initialRoute: AppRoutes.inicio,
-      routes: {
-        AppRoutes.inicio: (_) => const HomePage(),
-        AppRoutes.lancamentos: (_) => const LancamentosPage(),
-        AppRoutes.relatorioAnual: (_) => const RelatorioAnualPage(),
-        AppRoutes.categorias: (_) => const CategoriasPage(),
-        AppRoutes.configuracoes: (_) => const ConfiguracoesPage(),
-      },
+      routes: appRoutes,
     );
   }
 }
