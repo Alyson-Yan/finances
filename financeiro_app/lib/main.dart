@@ -9,6 +9,7 @@ import 'screens/categoria_page.dart';
 import 'screens/configuracoes_page.dart';
 import 'screens/home_page.dart';
 import 'screens/lancamentos_page.dart';
+import 'screens/planilha_page.dart';
 import 'screens/relatorio_anual_page.dart';
 import 'theme/app_theme.dart';
 
