@@ -8,6 +8,7 @@ import '../theme/app_theme.dart';
 enum AppDrawerItem {
   inicio,
   lancamentos,
+  planilha,
   relatorioAnual,
   categorias,
   configuracoes,
@@ -59,6 +60,14 @@ class AppDrawer extends StatelessWidget {
                     selectedIcon: Icons.receipt_long,
                     title: 'Lançamentos',
                     route: AppRoutes.lancamentos,
+                  ),
+                  _buildItem(
+                    context: context,
+                    item: AppDrawerItem.planilha,
+                    icon: Icons.table_chart_outlined,
+                    selectedIcon: Icons.table_chart,
+                    title: 'Modo planilha',
+                    route: AppRoutes.planilha,
                   ),
                   _buildItem(
                     context: context,
